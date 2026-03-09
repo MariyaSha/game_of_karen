@@ -20,7 +20,7 @@ from src.settings import (
     SCREEN_W, SCREEN_H,
     NEON_CYAN, NEON_PINK, NEON_YELLOW, NEON_GREEN,
     DARK_BG, WHITE, GOLD,
-    KAREN_MAX_HEALTH,
+    KAREN_MAX_HEALTH, TIER_THRESHOLDS,
 )
 
 
@@ -192,8 +192,8 @@ class HUD:
     # ── panel backdrop ────────────────────────────────────────────────────
 
     def _draw_panel(self, surface: pygame.Surface) -> None:
-        panel = pygame.Surface((260, 110), pygame.SRCALPHA)
-        panel.fill((0, 0, 0, 100))
+        panel = pygame.Surface((300, 126), pygame.SRCALPHA)
+        panel.fill((0, 0, 0, 110))
         pygame.draw.rect(panel, NEON_CYAN, panel.get_rect(), 1)
         surface.blit(panel, (8, 8))
 
@@ -224,9 +224,17 @@ class HUD:
                    tier: int, level_up_count: int) -> None:
         tier_cols = {1: NEON_CYAN, 2: NEON_YELLOW, 3: NEON_PINK}
         col       = tier_cols.get(tier, NEON_CYAN)
-        stars     = "★" * tier + "☆" * (3 - tier)
+        stars     = "\u2605" * tier + "\u2606" * (3 - tier)
         txt       = self._font_md.render(f"TIER {tier}  {stars}", True, col)
         surface.blit(txt, (16, 58))
+        # Progress bar toward next tier
+        if tier < 3:
+            next_thresh = TIER_THRESHOLDS.get(tier + 1, 99)
+            prog_txt = self._font_sm.render(
+                f"LVL-UP: {level_up_count}/{next_thresh}  [kill skaters]",
+                True, col
+            )
+            surface.blit(prog_txt, (16, 83))
 
     # ── score ─────────────────────────────────────────────────────────────
 
@@ -234,7 +242,7 @@ class HUD:
         txt = self._font_sm.render(
             f"CREDITS  {score:>7,}", True, NEON_CYAN
         )
-        surface.blit(txt, (16, 86))
+        surface.blit(txt, (16, 101))
 
     # ── boss HUD ──────────────────────────────────────────────────────────
 

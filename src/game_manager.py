@@ -183,19 +183,13 @@ class GameManager:
         keys = pygame.key.get_pressed()
 
         # Karen input + movement
-        prev_tier = self.karen.tier
         self.karen.handle_input(keys, self.waves)
         self.karen.apply_gravity()
         self.karen.resolve_floor()
         self.karen.platform_collide(self.platforms)
         self.karen.update()
 
-        # ── FIX 4: tier changed → reload frames ───────────────────────────
-        if self.karen.tier != prev_tier:
-            self.karen.reload_tier_frames()
-            self._tier_flash     = 90
-            self._tier_flash_val = self.karen.tier
-
+        # Decrement tier-flash overlay timer each frame
         if self._tier_flash > 0:
             self._tier_flash -= 1
 
@@ -212,9 +206,9 @@ class GameManager:
         for enemy in list(self.enemies):
             enemy.update()
 
-        # Update tokens
+        # Update tokens — pass Karen's world rect for magnet logic
         for tok in list(self.tokens):
-            tok.update()
+            tok.update(self.karen.rect)
 
         # Boss check
         if (not self._boss_spawned and
@@ -331,36 +325,59 @@ class GameManager:
                 break
 
     def _resolve_token_karen_collisions(self) -> None:
+        """
+        Collect tokens whose inflated world-space rect overlaps Karen's rect.
+
+        Tokens now carry an expanded rect (TOKEN_COLLECT_PAD inflated on each
+        side) so the collection window is generously wide.
+        Also catches any token that is within 80 px horizontally of Karen
+        and on the same Y-band (belt-level safety net).
+        """
         prev_tier = self.karen.tier
+        k_rect    = self.karen.rect   # world-space
+
         for tok in list(self.tokens):
-            if tok.rect.colliderect(self.karen.rect):
+            # Primary check: rect overlap (uses inflated token rect)
+            hit = tok.rect.colliderect(k_rect)
+
+            # Safety-net: close horizontal approach even without rect overlap
+            if not hit:
+                dx   = abs(tok._x + tok.image.get_width()  // 2 - k_rect.centerx)
+                dy   = abs(tok._y + tok.image.get_height() // 2 - k_rect.centery)
+                hit  = (dx < 80 and dy < 70)
+
+            if hit:
                 self.particles.emit_collect(
-                    tok.rect.centerx, tok.rect.centery, tok.token_type
+                    self._world_to_screen(int(tok._x)), int(tok._y), tok.token_type
                 )
                 if tok.token_type == "bonus":
                     self.karen.collect_bonus()
                     self.notifications.add(
                         "+100 CREDITS",
-                        self._world_to_screen(tok.rect.centerx),
-                        tok.rect.top - 16,
+                        self._world_to_screen(int(tok._x)),
+                        int(tok._y) - 16,
                         NEON_CYAN, font_size=18, duration=50,
                     )
                 elif tok.token_type == "level_up":
-                    # ── FIX 4: increment tier AND reload frames ────────────
-                    self.karen.collect_level_up()
-                    self.karen.reload_tier_frames()
+                    old_tier = self.karen.tier
+                    self.karen.collect_level_up()      # increments count + may set tier
+                    self.karen.reload_tier_frames()    # swap sprite immediately
                     self.notifications.add(
-                        "LEVEL UP TOKEN!",
-                        self._world_to_screen(tok.rect.centerx),
-                        tok.rect.top - 16,
+                        f"LEVEL UP TOKEN! ({self.karen.level_up_count})",
+                        self._world_to_screen(int(tok._x)),
+                        int(tok._y) - 16,
                         NEON_YELLOW, font_size=20, duration=70,
                     )
+                    # Immediate tier-flash when tier actually changed
+                    if self.karen.tier != old_tier:
+                        self._tier_flash     = 120
+                        self._tier_flash_val = self.karen.tier
                 tok.kill()
 
-        # Tier notification (catches first-time tier change from collect)
+        # Tier notification (catches any tier change this frame)
         if self.karen.tier != prev_tier:
             self.notifications.add(
-                f"★  TIER {self.karen.tier} EVOLVED  ★",
+                f"\u2605  TIER {self.karen.tier} EVOLVED  \u2605",
                 SCREEN_W // 2, SCREEN_H // 2 - 60,
                 NEON_PINK, font_size=36, duration=150,
             )

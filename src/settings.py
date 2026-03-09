@@ -38,7 +38,10 @@ WAVE_MAX_R          = 90
 WAVE_GROW_RATE      = 2.5
 
 # Level-up thresholds  (accumulated token_level_up pickups)
-TIER_THRESHOLDS     = {1: 0, 2: 3, 3: 6}   # at 3 level-ups → Tier 2 etc.
+# FIX: Lowered thresholds so tier evolution is achievable quickly.
+# Tier 1 → 2 after collecting 1 level_up token,
+# Tier 2 → 3 after collecting 3 level_up tokens total.
+TIER_THRESHOLDS     = {1: 0, 2: 1, 3: 3}   # at 1 level-up → Tier 2; at 3 → Tier 3
 
 # ─────────────────────────────────────────────
 #  ENEMIES
@@ -94,6 +97,11 @@ TOKEN_BONUS_SIZE    = 36
 TOKEN_LEVELUP_SIZE  = 48
 TOKEN_SPEED         = 0         # tokens fall with gravity
 TOKEN_GRAVITY       = 0.4
+# Token magnet: radius (world-px) within which tokens slide toward Karen
+TOKEN_MAGNET_RADIUS = 180       # pixels
+TOKEN_MAGNET_SPEED  = 4         # px/frame toward Karen when in range
+# Level-up token drift: tokens move left slowly so they meet Karen
+TOKEN_LEVELUP_DRIFT = -1.5      # px/frame leftward drift while airborne
 
 # ─────────────────────────────────────────────
 #  COLOURS  (neon-tech palette)
