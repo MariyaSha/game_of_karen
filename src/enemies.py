@@ -5,11 +5,22 @@ Base class
 ──────────
   Enemy  →  common physics, draw, hit detection, health
 
+  FIX 6 — UNIVERSAL HEALTH BARS:
+    The health-bar drawing logic has been moved from SlackerEnemy into the
+    base Enemy class.  Every enemy now shows a small HP bar above their
+    sprite as soon as they have taken at least one hit (health < max_health).
+    The bar is hidden at full health to avoid clutter.
+
 Subclasses
 ──────────
   FlyerEnemy   — jetpack enemy, moves left with sine-wave vertical oscillation
   SkaterEnemy  — fast ground patrol, bounces off screen edges
   SlackerEnemy — static tank on platforms; takes multiple hits to kill
+
+Camera
+──────
+  All draw() methods accept an optional camera_x parameter so they can
+  translate from world-space to screen-space correctly.
 """
 
 from __future__ import annotations
@@ -35,17 +46,27 @@ class Enemy(pygame.sprite.Sprite):
     Abstract base for all enemies.
 
     Subclasses must set:
-        self.image   – current pygame.Surface
-        self.rect    – pygame.Rect
-    and implement `update()`.
+        self.image        – current pygame.Surface
+        self.rect         – pygame.Rect  (world-space)
+        self._max_health  – the enemy's starting HP (set in __init__)
+    and implement update().
     """
+
+    # ── FIX 6: health-bar visual constants (shared) ───────────────────────
+    _BAR_W   = 40
+    _BAR_H   = 5
+    _BAR_DY  = 6   # pixels above sprite top
+    _BAR_FILL_COL  = (200, 40,  20)
+    _BAR_EMPTY_COL = (40,  10,  10)
+    _BAR_BORDER_COL = NEON_PINK
 
     def __init__(self, health: int = 1) -> None:
         super().__init__()
         self.health      : int  = health
+        self._max_health : int  = health   # remember the original max for bar ratio
         self.alive       : bool = True
-        self.hit_flash   : int  = 0    # frames of white-flash after hit
-        self._drop_token : str  = ""   # "bonus" | "level_up" | ""
+        self.hit_flash   : int  = 0
+        self._drop_token : str  = ""
 
     # ── combat ────────────────────────────────────────────────────────────
 
@@ -58,20 +79,64 @@ class Enemy(pygame.sprite.Sprite):
 
     # ── draw ──────────────────────────────────────────────────────────────
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
+        """
+        Draw the enemy sprite translated by camera_x.
+        After the sprite, draw the universal health bar (FIX 6).
+        """
         if not self.alive:
             return
+
+        # Translate world rect to screen position
+        screen_x = self.rect.x - camera_x
+        screen_y = self.rect.y
+
+        # Skip rendering if fully off screen
+        if screen_x + self.rect.width < 0 or screen_x > SCREEN_W:
+            return
+
+        # Build the screen-space draw rect
+        draw_rect = pygame.Rect(screen_x, screen_y,
+                                self.rect.width, self.rect.height)
+
         img = self.image
         if self.hit_flash > 0:
             img = img.copy()
             img.fill((255, 255, 255, 160), special_flags=pygame.BLEND_RGBA_ADD)
             self.hit_flash -= 1
-        surface.blit(img, self.rect.topleft)
+        surface.blit(img, draw_rect.topleft)
+
+        # ── FIX 6: draw health bar for every enemy once they've been hit ──
+        self._draw_health_bar(surface, draw_rect)
+
+    # ── FIX 6: universal health bar ───────────────────────────────────────
+
+    def _draw_health_bar(self, surface: pygame.Surface,
+                         draw_rect: pygame.Rect) -> None:
+        """
+        Show a small health bar above the sprite only after the first hit
+        (i.e. when health < _max_health).  Full-health enemies are clean.
+        """
+        if self.health >= self._max_health:
+            return   # pristine — no bar needed
+
+        bx = draw_rect.centerx - self._BAR_W // 2
+        by = draw_rect.top - self._BAR_DY - self._BAR_H
+
+        # Background (empty portion)
+        pygame.draw.rect(surface, self._BAR_EMPTY_COL,
+                         (bx, by, self._BAR_W, self._BAR_H))
+        # Filled portion
+        fill_w = max(0, int(self._BAR_W * (self.health / self._max_health)))
+        pygame.draw.rect(surface, self._BAR_FILL_COL,
+                         (bx, by, fill_w, self._BAR_H))
+        # Border
+        pygame.draw.rect(surface, self._BAR_BORDER_COL,
+                         (bx, by, self._BAR_W, self._BAR_H), 1)
 
     # ── token drop ────────────────────────────────────────────────────────
 
     def get_drop(self) -> str:
-        """Return the token type this enemy drops on death."""
         return self._drop_token
 
 
@@ -92,18 +157,15 @@ class FlyerEnemy(Enemy):
         super().__init__(health=1)
         self._drop_token = "bonus"
 
-        self._x       = float(spawn_x)
-        self._y       = float(spawn_y)
-        self._base_y  = float(spawn_y)
-        self._t       = random.uniform(0, math.tau)   # phase offset
+        self._x      = float(spawn_x)
+        self._y      = float(spawn_y)
+        self._base_y = float(spawn_y)
+        self._t      = random.uniform(0, math.tau)
 
-        # Randomly face the direction of movement (left)
         self.image = assets["flyer_left"]
         self.rect  = self.image.get_rect(
             topleft=(int(self._x), int(self._y))
         )
-
-    # ── update ────────────────────────────────────────────────────────────
 
     def update(self) -> None:
         self._t  += FLYER_FREQ
@@ -113,8 +175,8 @@ class FlyerEnemy(Enemy):
         self.rect.x = int(self._x)
         self.rect.y = int(self._y)
 
-        # De-spawn when fully off left edge
-        if self._x + self.rect.width < 0:
+        # De-spawn when fully off left edge (world-space)
+        if self._x + self.rect.width < -200:
             self.alive = False
             self.kill()
 
@@ -136,33 +198,28 @@ class SkaterEnemy(Enemy):
         self._drop_token = "level_up"
 
         self._x     = float(spawn_x)
-        self._speed = -SKATER_SPEED    # start moving left
+        self._speed = -SKATER_SPEED
 
         self._update_image()
-        floor_y = SKATER_Y - self.rect.height
-        self._y  = float(floor_y)
+        self._y = float(SKATER_Y - self.rect.height)
         self.rect.topleft = (int(self._x), int(self._y))
-
-    # ── helpers ───────────────────────────────────────────────────────────
 
     def _update_image(self) -> None:
         side = "right" if self._speed > 0 else "left"
         self.image = assets[f"skater_{side}"]
-        w, h = self.image.get_size()
+        w, h       = self.image.get_size()
         self.rect  = pygame.Rect(int(self._x), 0, w, h)
-
-    # ── update ────────────────────────────────────────────────────────────
 
     def update(self) -> None:
         self._x += self._speed
 
-        # Bounce off edges
+        # Bounce off world edges
         if self._x <= 0:
             self._x     = 0
             self._speed = abs(self._speed)
             self._update_image()
-        elif self._x + self.rect.width >= SCREEN_W:
-            self._x     = SCREEN_W - self.rect.width
+        elif self._x + self.rect.width >= SCREEN_W * 3:
+            self._x     = SCREEN_W * 3 - self.rect.width
             self._speed = -abs(self._speed)
             self._update_image()
 
@@ -180,12 +237,8 @@ class SlackerEnemy(Enemy):
     - Never moves horizontally.
     - Takes SLACKER_HEALTH hits to kill.
     - Drops a bonus token on death.
-    - Health bar drawn above the sprite.
+    - Health bar is handled by the base Enemy class (FIX 6).
     """
-
-    _BAR_W  = 40
-    _BAR_H  = 6
-    _BAR_DY = 8    # pixels above sprite top
 
     def __init__(self, platform_x: int, platform_y: int) -> None:
         super().__init__(health=SLACKER_HEALTH)
@@ -193,38 +246,12 @@ class SlackerEnemy(Enemy):
 
         self.image = assets["slacker_right"]
         w, h       = self.image.get_size()
-        # Centre horizontally on the platform, sit on top
         self._x    = float(platform_x - w // 2)
         self._y    = float(platform_y - h)
         self.rect  = pygame.Rect(int(self._x), int(self._y), w, h)
 
-    # ── update ────────────────────────────────────────────────────────────
-
     def update(self) -> None:
-        # Static — no movement needed
-        pass
-
-    # ── draw ──────────────────────────────────────────────────────────────
-
-    def draw(self, surface: pygame.Surface) -> None:
-        super().draw(surface)
-        if not self.alive:
-            return
-        self._draw_health_bar(surface)
-
-    def _draw_health_bar(self, surface: pygame.Surface) -> None:
-        bx = self.rect.centerx - self._BAR_W // 2
-        by = self.rect.top - self._BAR_DY - self._BAR_H
-        # Background
-        pygame.draw.rect(surface, (40, 10, 10),
-                         (bx, by, self._BAR_W, self._BAR_H))
-        # Fill
-        fill_w = int(self._BAR_W * (self.health / SLACKER_HEALTH))
-        pygame.draw.rect(surface, (200, 40, 20),
-                         (bx, by, fill_w, self._BAR_H))
-        # Border
-        pygame.draw.rect(surface, NEON_PINK,
-                         (bx, by, self._BAR_W, self._BAR_H), 1)
+        pass   # static — no movement
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -232,18 +259,15 @@ class SlackerEnemy(Enemy):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def spawn_flyer() -> FlyerEnemy:
-    """Create a FlyerEnemy at a random right-side x, random y in band."""
     sx = random.randint(SCREEN_W, SCREEN_W + 200)
     sy = random.randint(*FLYER_Y_RANGE)
     return FlyerEnemy(sx, sy)
 
 
 def spawn_skater() -> SkaterEnemy:
-    """Create a SkaterEnemy at a random right-side x, on the floor."""
     sx = random.randint(SCREEN_W, SCREEN_W + 300)
     return SkaterEnemy(sx)
 
 
 def spawn_slacker(platform) -> SlackerEnemy:
-    """Create a SlackerEnemy on the given Platform."""
     return SlackerEnemy(platform.spawn_x, platform.top_y)

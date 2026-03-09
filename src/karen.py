@@ -4,6 +4,16 @@ karen.py — Player character class.
 Karen has three Tiers (cosmetic + stat upgrades), 5 hearts of health,
 full directional animations, a jump with gravity, and can fire a
 growing Sound-Wave projectile.
+
+Fixes applied
+─────────────
+  FIX 2 — Air-walking: apply_gravity() resets on_ground = False every frame;
+           platform_collide() / resolve_floor() are the *only* paths that set
+           it back to True, correctly detecting edge walk-off.
+  FIX 3 — Tier scaling: SoundWave uses the `tier` parameter to scale its
+           initial radius, max radius, growth rate, and travel speed.
+  FIX 4 — Tier reload: reload_tier_frames() forces _get_frame() to pull the
+           correct tier sprite from the asset cache after a tier change.
 """
 
 from __future__ import annotations
@@ -26,63 +36,89 @@ from src.asset_loader import assets
 #  SOUND WAVE PROJECTILE
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── FIX 3: per-tier scaling tables ───────────────────────────────────────────
+# Each table maps tier → (initial_radius, max_radius, grow_rate, speed)
+_WAVE_TIER_PARAMS: dict[int, tuple[float, float, float, float]] = {
+    1: (WAVE_INIT_R * 0.7,  WAVE_MAX_R * 0.65, WAVE_GROW_RATE * 0.7,  WAVE_SPEED * 0.85),  # small/slow
+    2: (WAVE_INIT_R,        WAVE_MAX_R,         WAVE_GROW_RATE,         WAVE_SPEED        ),  # medium/default
+    3: (WAVE_INIT_R * 1.4,  WAVE_MAX_R * 1.35, WAVE_GROW_RATE * 1.4,  WAVE_SPEED * 1.2  ),  # large/fast
+}
+
+
 class SoundWave(pygame.sprite.Sprite):
     """
     Growing circular projectile emitted by Karen.
-    Starts small and expands outward while moving horizontally.
+    Tier 1 → smallest and slowest.
+    Tier 2 → medium (base values from settings).
+    Tier 3 → largest and fastest (Full Karen Mode).
     """
 
     def __init__(self, x: int, y: int, direction: int, tier: int) -> None:
         """
         Parameters
         ----------
-        x, y      : spawn position (centre of Karen)
+        x, y      : spawn position (centre of Karen) in WORLD space
         direction : +1 = right, -1 = left
-        tier      : Karen's current tier (affects colour intensity)
+        tier      : Karen's current tier — controls size and speed scaling
         """
         super().__init__()
+
+        # ── FIX 3: pull tier-specific parameters ─────────────────────────
+        init_r, max_r, grow, speed = _WAVE_TIER_PARAMS.get(
+            tier, _WAVE_TIER_PARAMS[1]
+        )
+        self._max_r   = max_r
+        self._grow    = grow
+        self._speed   = speed
+
         self.x         = float(x)
         self.y         = float(y)
         self.direction = direction
-        self.radius    = float(WAVE_INIT_R)
+        self.radius    = float(init_r)
         self.alive_flag = True
 
         # Tier colour mapping
         colours = {1: NEON_CYAN, 2: NEON_YELLOW, 3: NEON_PINK}
         self.colour = colours.get(tier, NEON_CYAN)
 
-        # Pygame sprite rect (updated each frame)
+        # Pygame sprite rect (updated each frame, world-space)
         self.image = pygame.Surface((1, 1), pygame.SRCALPHA)
         self.rect  = pygame.Rect(int(self.x), int(self.y), 1, 1)
 
     # ── update ───────────────────────────────────────────────────────────
 
     def update(self) -> None:
-        self.x      += WAVE_SPEED * self.direction
-        self.radius  = min(self.radius + WAVE_GROW_RATE, WAVE_MAX_R)
+        self.x      += self._speed * self.direction
+        self.radius  = min(self.radius + self._grow, self._max_r)
 
-        # Keep rect in sync for collision detection
+        # Keep rect in sync (world-space) for collision detection
         r = int(self.radius)
         self.rect = pygame.Rect(
             int(self.x) - r, int(self.y) - r, r * 2, r * 2
         )
 
-        # Kill if off-screen
-        if self.x < -WAVE_MAX_R or self.x > SCREEN_W + WAVE_MAX_R:
+        # Kill if off world bounds (generous margin = max possible radius)
+        if self.x < -(self._max_r + 100) or self.x > SCREEN_W * 3:
             self.alive_flag = False
             self.kill()
 
     # ── draw ─────────────────────────────────────────────────────────────
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
         r    = int(self.radius)
-        cx   = int(self.x)
+        # Convert world-space centre to screen-space
+        cx   = int(self.x) - camera_x
         cy   = int(self.y)
+
+        # Skip if completely off screen
+        if cx + r < 0 or cx - r > SCREEN_W:
+            return
+
         # Outer glow (semi-transparent)
         glow = pygame.Surface((r * 4, r * 4), pygame.SRCALPHA)
         pygame.draw.circle(glow, (*self.colour, 50), (r * 2, r * 2), r * 2)
         surface.blit(glow, (cx - r * 2, cy - r * 2))
-        # Main circle
+        # Main ring
         pygame.draw.circle(surface, self.colour, (cx, cy), r, 3)
         # Inner bright ring
         if r > 10:
@@ -99,23 +135,23 @@ class Karen(pygame.sprite.Sprite):
 
     State machine
     ─────────────
-      idle / walk  → ground movement
-      jump         → rising phase
-      fall         → falling phase
-      attack       → fire wave (can move simultaneously)
+      walk  → ground movement (also covers idle frame)
+      jump  → rising phase (vel_y < 0)
+      fall  → falling phase (vel_y ≥ 0, not on ground)
+      attack → fire wave (can move simultaneously)
 
     Tier system
     ───────────
       Tier 1 → 2 → 3 triggered by accumulated token_level_up pickups.
+      Tier change forces reload_tier_frames() to swap sprites immediately.
     """
 
-    # Animation state names that map to sprite keys
     _STATES = ("walk", "jump", "fall", "attack")
 
     def __init__(self) -> None:
         super().__init__()
 
-        # ── position / physics ───────────────────────────────────────────
+        # ── position / physics (WORLD space) ────────────────────────────
         self.pos        = pygame.math.Vector2(KAREN_SPAWN_X, KAREN_SPAWN_Y)
         self.vel_y      : float = 0.0
         self.on_ground  : bool  = False
@@ -129,20 +165,20 @@ class Karen(pygame.sprite.Sprite):
 
         # ── economy ──────────────────────────────────────────────────────
         self.score           : int = 0
-        self.level_up_count  : int = 0   # accumulated token_level_up pickups
+        self.level_up_count  : int = 0
 
         # ── animation ────────────────────────────────────────────────────
         self._anim_timer : int = 0
-        self._anim_frame : int = 0       # only 1 frame per state currently
+        self._anim_frame : int = 0
 
         # ── invincibility ─────────────────────────────────────────────────
         self._iframe_timer : int = 0
 
         # ── attack cooldown ───────────────────────────────────────────────
         self._attack_timer    : int  = 0
-        self._attack_duration : int  = 30  # frames attack sprite shows
+        self._attack_duration : int  = 30
 
-        # ── sprite image / rect ──────────────────────────────────────────
+        # ── sprite image / rect (world-space rect) ───────────────────────
         self.image = self._get_frame()
         self.rect  = self.image.get_rect(topleft=(int(self.pos.x), int(self.pos.y)))
 
@@ -155,13 +191,25 @@ class Karen(pygame.sprite.Sprite):
         key = f"karen{self.tier}_{self.state}_{self._dir_str()}"
         return assets.get(key, assets["karen1_walk_right"])
 
+    # ── FIX 4: reload tier sprites after evolution ────────────────────────
+
+    def reload_tier_frames(self) -> None:
+        """
+        Force the sprite image to refresh from the asset cache for the
+        new tier.  Called immediately after self.tier is incremented so
+        the correct tier sprite shows on the very next frame.
+        """
+        self.image = self._get_frame()
+        # Preserve rect position but update size in case the sprite changed
+        new_rect = self.image.get_rect(topleft=self.rect.topleft)
+        self.rect = new_rect
+
     # ── input & movement ──────────────────────────────────────────────────
 
     def handle_input(self, keys: pygame.key.ScancodeWrapper,
                      waves: pygame.sprite.Group) -> None:
         """Process keyboard input, update velocity, and fire waves."""
 
-        # Horizontal movement
         moving = False
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.pos.x  -= KAREN_SPEED
@@ -172,8 +220,8 @@ class Karen(pygame.sprite.Sprite):
             self.facing  = 1
             moving       = True
 
-        # Clamp to screen edges
-        self.pos.x = max(0, min(self.pos.x, SCREEN_W - self.rect.width))
+        # Clamp to world left edge (right is unbounded — the camera scrolls)
+        self.pos.x = max(0, self.pos.x)
 
         # Jump
         if (keys[pygame.K_SPACE] or keys[pygame.K_UP]) and self.on_ground:
@@ -194,23 +242,34 @@ class Karen(pygame.sprite.Sprite):
         elif not self.on_ground:
             self.state = "jump" if self.vel_y < 0 else "fall"
         else:
-            self.state = "walk" if moving else "walk"  # idle = walk frame
+            self.state = "walk"
 
     # ── physics ───────────────────────────────────────────────────────────
 
     def apply_gravity(self) -> None:
-        if not self.on_ground:
-            self.vel_y = min(self.vel_y + GRAVITY, TERM_VEL)
+        """
+        Apply gravity every frame.
+
+        FIX 2 — Air-walking:
+          We reset on_ground = False here unconditionally at the START of
+          every physics tick.  The only code paths that can set it back to
+          True are platform_collide() and resolve_floor(), which run *after*
+          this method.  This means that if Karen walks off a platform edge,
+          on_ground is False before either landing-check runs, so she will
+          correctly start falling.
+        """
+        self.on_ground = False          # ← FIX 2: reset before landing checks
+        self.vel_y = min(self.vel_y + GRAVITY, TERM_VEL)
         self.pos.y += self.vel_y
 
     def land_on(self, surface_y: int) -> None:
         """Snap Karen to a surface and reset vertical velocity."""
-        self.pos.y    = surface_y - self.rect.height
-        self.vel_y    = 0.0
-        self.on_ground = True
+        self.pos.y     = surface_y - self.rect.height
+        self.vel_y     = 0.0
+        self.on_ground = True           # set back to True here — never elsewhere
 
     def resolve_floor(self) -> None:
-        """Hard floor boundary."""
+        """Hard floor boundary — sets on_ground if Karen hits the floor."""
         floor_surface = FLOOR_Y - self.rect.height
         if self.pos.y >= floor_surface:
             self.land_on(FLOOR_Y)
@@ -218,15 +277,21 @@ class Karen(pygame.sprite.Sprite):
     # ── collision helpers ─────────────────────────────────────────────────
 
     def platform_collide(self, platforms: list) -> None:
-        """Check and resolve downward collision with platforms."""
+        """
+        Check and resolve downward collision with platforms.
+
+        We use the position from BEFORE this frame's gravity displacement
+        (prev_y = pos.y - vel_y) to determine whether Karen was above the
+        platform in the last frame, preventing tunnelling.
+        """
         if self.vel_y < 0:
             return   # rising — skip platform snap
 
+        # pos.y already includes this frame's displacement
         prev_y = self.pos.y - self.vel_y
         for plat in platforms:
-            # Only land if Karen was above the platform last frame
             above_last_frame = (prev_y + self.rect.height) <= (plat.rect.top + 4)
-            feet_y = self.pos.y + self.rect.height
+            feet_y           = self.pos.y + self.rect.height
 
             if above_last_frame and feet_y >= plat.rect.top:
                 if (self.pos.x + self.rect.width > plat.rect.left and
@@ -250,38 +315,40 @@ class Karen(pygame.sprite.Sprite):
     def collect_level_up(self) -> None:
         self.level_up_count += 1
         self.score          += 500
-        # Tier upgrade
+        # Tier upgrade thresholds
         if self.tier == 1 and self.level_up_count >= TIER_THRESHOLDS[2]:
             self.tier = 2
         elif self.tier == 2 and self.level_up_count >= TIER_THRESHOLDS[3]:
             self.tier = 3
+        # reload_tier_frames() is called externally by GameManager after this
 
     # ── update ────────────────────────────────────────────────────────────
 
     def update(self) -> None:
         # Timers
-        if self._iframe_timer  > 0: self._iframe_timer  -= 1
-        if self._attack_timer  > 0: self._attack_timer  -= 1
+        if self._iframe_timer > 0: self._iframe_timer -= 1
+        if self._attack_timer > 0: self._attack_timer -= 1
 
-        # Sync rect
+        # Sync world-space rect
         self.rect.x = int(self.pos.x)
         self.rect.y = int(self.pos.y)
 
-        # Refresh image
+        # Refresh animation frame
         self.image = self._get_frame()
 
     # ── draw ──────────────────────────────────────────────────────────────
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
+        """Draw Karen at world pos translated by camera."""
         # Blink every 6 frames when invincible
         if self._iframe_timer > 0 and (self._iframe_timer // 6) % 2 == 0:
             return
-        surface.blit(self.image, self.rect.topleft)
+        screen_x = int(self.pos.x) - camera_x
+        surface.blit(self.image, (screen_x, int(self.pos.y)))
 
     # ── HUD helpers ───────────────────────────────────────────────────────
 
     def draw_hud(self, surface: pygame.Surface) -> None:
-        """Draw health hearts, tier badge and score."""
         self._draw_hearts(surface)
         self._draw_tier(surface)
         self._draw_score(surface)
@@ -291,12 +358,10 @@ class Karen(pygame.sprite.Sprite):
         for i in range(KAREN_MAX_HEALTH):
             colour = (220, 30, 60) if i < self.health else (60, 20, 30)
             cx = hx + i * 34
-            # Heart shape via two circles + polygon
             pygame.draw.circle(surface, colour, (cx + 7,  hy + 7), 7)
             pygame.draw.circle(surface, colour, (cx + 20, hy + 7), 7)
             points = [(cx, hy + 10), (cx + 13, hy + 26), (cx + 27, hy + 10)]
             pygame.draw.polygon(surface, colour, points)
-            # White sheen
             pygame.draw.circle(surface, (255, 180, 200), (cx + 8, hy + 5), 2)
 
     def _draw_tier(self, surface: pygame.Surface) -> None:

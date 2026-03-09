@@ -16,6 +16,8 @@ Responsibilities
   • Spawn Slackers on platforms at startup.
   • Trigger boss entrance after score threshold.
   • Pass data to HUD for rendering.
+  • Drive a dynamic camera (self.camera_x) that follows Karen,
+    with seamlessly tiling background scrolling.
 """
 
 from __future__ import annotations
@@ -58,10 +60,20 @@ class GameManager:
     # Score needed to unlock the boss encounter
     BOSS_SCORE_THRESHOLD = 2000
 
+    # How fast the camera trails Karen (0 = instant, 1 = never)
+    _CAM_LAG  = 0.08
+    # Where Karen is held on screen (left third)
+    _CAM_FOCUS_X = SCREEN_W // 3
+
     def __init__(self, screen: pygame.Surface) -> None:
         self.screen  = screen
         self.clock   = pygame.time.Clock()
         self._state  = GameState.PLAYING
+
+        # ── CAMERA ────────────────────────────────────────────────────────
+        # camera_x is the world-X that maps to the left edge of the screen.
+        # Starts at 0 so the origin matches screen-space on frame 1.
+        self.camera_x : float = 0.0
 
         # ── subsystems ────────────────────────────────────────────────────
         self.hud          = HUD()
@@ -136,9 +148,29 @@ class GameManager:
         self._boss_active  = False
         self._boss_spawned = False
         self._tier_flash   = 0
+        self.camera_x      = 0.0
         self.spawner = EnemySpawner(self.enemies, self.tokens)
         self._init_platform_slackers()
         self._state  = GameState.PLAYING
+
+    # ── camera ────────────────────────────────────────────────────────────
+
+    def _update_camera(self) -> None:
+        """
+        Smoothly lag the camera toward Karen's position so that she sits
+        at _CAM_FOCUS_X pixels from the left edge of the screen.
+
+        camera_x is the world coordinate of the left screen edge.
+        """
+        target_cam = self.karen.pos.x - self._CAM_FOCUS_X
+        # Lerp towards target (lag factor: smaller = faster catch-up)
+        self.camera_x += (target_cam - self.camera_x) * (1.0 - self._CAM_LAG)
+        # Never scroll left of world origin
+        self.camera_x = max(0.0, self.camera_x)
+
+    def _world_to_screen(self, world_x: float) -> int:
+        """Convert a world-X coordinate to screen-X."""
+        return int(world_x - self.camera_x)
 
     # ── update ────────────────────────────────────────────────────────────
 
@@ -158,13 +190,17 @@ class GameManager:
         self.karen.platform_collide(self.platforms)
         self.karen.update()
 
-        # Tier-up flash
+        # ── FIX 4: tier changed → reload frames ───────────────────────────
         if self.karen.tier != prev_tier:
+            self.karen.reload_tier_frames()
             self._tier_flash     = 90
             self._tier_flash_val = self.karen.tier
 
         if self._tier_flash > 0:
             self._tier_flash -= 1
+
+        # ── FIX 1: update camera after Karen moves ────────────────────────
+        self._update_camera()
 
         # Update waves
         self.waves.update()
@@ -244,7 +280,8 @@ class GameManager:
                         self.karen.score += score_gain
                         self.notifications.add(
                             f"+{score_gain}",
-                            enemy.rect.centerx, enemy.rect.top - 20,
+                            self._world_to_screen(enemy.rect.centerx),
+                            enemy.rect.top - 20,
                             NEON_CYAN, font_size=18, duration=50
                         )
                     wave.kill()
@@ -262,7 +299,8 @@ class GameManager:
                 )
                 self.notifications.add(
                     "CRITICAL HIT!",
-                    self.boss.rect.centerx, self.boss.rect.top - 30,
+                    self._world_to_screen(self.boss.rect.centerx),
+                    self.boss.rect.top - 30,
                     NEON_YELLOW, font_size=22, duration=60,
                 )
                 wave.kill()
@@ -303,19 +341,23 @@ class GameManager:
                     self.karen.collect_bonus()
                     self.notifications.add(
                         "+100 CREDITS",
-                        tok.rect.centerx, tok.rect.top - 16,
+                        self._world_to_screen(tok.rect.centerx),
+                        tok.rect.top - 16,
                         NEON_CYAN, font_size=18, duration=50,
                     )
                 elif tok.token_type == "level_up":
+                    # ── FIX 4: increment tier AND reload frames ────────────
                     self.karen.collect_level_up()
+                    self.karen.reload_tier_frames()
                     self.notifications.add(
                         "LEVEL UP TOKEN!",
-                        tok.rect.centerx, tok.rect.top - 16,
+                        self._world_to_screen(tok.rect.centerx),
+                        tok.rect.top - 16,
                         NEON_YELLOW, font_size=20, duration=70,
                     )
                 tok.kill()
 
-        # Tier notification
+        # Tier notification (catches first-time tier change from collect)
         if self.karen.tier != prev_tier:
             self.notifications.add(
                 f"★  TIER {self.karen.tier} EVOLVED  ★",
@@ -326,36 +368,49 @@ class GameManager:
     # ── draw ──────────────────────────────────────────────────────────────
 
     def _draw(self) -> None:
-        # Background
-        self.screen.blit(assets["background"], (0, 0))
+        cam   = int(self.camera_x)
+        bg    = assets["background"]
+        bg_w  = bg.get_width()   # scaled background width (= SCREEN_W)
+
+        # ── FIX 1: tiling background wrap ─────────────────────────────────
+        # offset is the x-position of the first tile's left edge on screen.
+        # Using modulo ensures it wraps seamlessly.
+        offset = -(cam % bg_w)
+        # Draw enough tiles to cover SCREEN_W even when offset is negative
+        x = offset
+        while x < SCREEN_W:
+            self.screen.blit(bg, (x, 0))
+            x += bg_w
+
+        # ── FIX 1: all world objects drawn with camera offset ──────────────
 
         # Platforms
         for plat in self.platforms:
-            plat.draw(self.screen)
+            plat.draw(self.screen, cam)
 
         # Tokens
         for tok in self.tokens:
-            tok.draw(self.screen)
+            tok.draw(self.screen, cam)
 
         # Enemies
         for enemy in self.enemies:
-            enemy.draw(self.screen)
+            enemy.draw(self.screen, cam)
 
-        # Boss
+        # Boss + fireballs
         if self._boss_active and self.boss:
-            self.boss.draw(self.screen)
+            self.boss.draw(self.screen, cam)
 
-        # Sound waves
+        # Sound waves (world-space rect, camera-translated for draw)
         for wave in self.waves:
-            wave.draw(self.screen)
+            wave.draw(self.screen, cam)
 
-        # Karen
-        self.karen.draw(self.screen)
+        # Karen (always drawn at screen-space pos = world_x - cam)
+        self.karen.draw(self.screen, cam)
 
-        # Particles
+        # Particles (screen-space already)
         self.particles.draw(self.screen)
 
-        # Notifications
+        # Notifications (screen-space already)
         self.notifications.draw(self.screen)
 
         # Tier-up flash overlay

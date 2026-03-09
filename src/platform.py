@@ -61,17 +61,24 @@ class Platform(pygame.sprite.Sprite):
 
     # ── public ───────────────────────────────────────────────────────────
 
-    def draw(self, surface: pygame.Surface) -> None:
-        """Draw platform with a soft glow halo beneath it."""
-        gx = self.rect.x - self._GLOW_EXPAND
-        gy = self.rect.y - 2
+    def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
+        """Draw platform with a soft glow halo beneath it, translated by camera."""
+        sx = self.rect.x - camera_x   # screen-space x
+        sy = self.rect.y
+
+        # Skip if off screen
+        if sx + self.rect.w < 0 or sx > surface.get_width():
+            return
+
+        gx = sx - self._GLOW_EXPAND
+        gy = sy - 2
         gw = self.rect.w + self._GLOW_EXPAND * 2
         gh = self.rect.h + self._GLOW_EXPAND
 
         glow = pygame.Surface((gw, gh), pygame.SRCALPHA)
         glow.fill(self._GLOW_COLOR)
         surface.blit(glow, (gx, gy))
-        surface.blit(self.image, self.rect.topleft)
+        surface.blit(self.image, (sx, sy))
 
     @property
     def top_y(self) -> int:

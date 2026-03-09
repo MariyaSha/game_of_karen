@@ -63,19 +63,23 @@ class Token(pygame.sprite.Sprite):
 
     # ── draw ──────────────────────────────────────────────────────────────
 
-    def draw(self, surface: pygame.Surface) -> None:
-        # Glow circle behind the token
+    def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
+        """Draw token with glow, translated by camera_x."""
         import math
         self._pulse_t += self._PULSE_SPEED
         pulse = 0.7 + 0.3 * math.sin(self._pulse_t)
         r     = int(self.rect.width * pulse)
+        # Convert world-space centre to screen-space
+        cx = self.rect.centerx - camera_x
+        cy = self.rect.centery
+        # Skip if off screen
+        if cx + r < 0 or cx - r > SCREEN_W:
+            return
         glow  = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
         pygame.draw.circle(glow, (*self._glow_colour, self._GLOW_ALPHA),
                            (r, r), r)
-        cx = self.rect.centerx
-        cy = self.rect.centery
         surface.blit(glow, (cx - r, cy - r))
-        surface.blit(self.image, self.rect.topleft)
+        surface.blit(self.image, (cx - self.rect.width // 2, cy - self.rect.height // 2))
 
     @property
     def _glow_colour(self) -> tuple[int, int, int]:
