@@ -335,6 +335,20 @@ class Karen(pygame.sprite.Sprite):
         self._iframe_timer = KAREN_IFRAMES
         if self.health <= 0:
             self.alive = False
+            return
+        # ── Tier regression: any hit while tier > 1 demotes back to tier 1 ──
+        if self.tier > 1:
+            self.demote_tier()
+
+    def demote_tier(self) -> None:
+        """
+        Immediately drop Karen back to Tier 1 and reset her level-up counter.
+        Called automatically by take_damage() when tier > 1.
+        The caller (GameManager) should fire the regression notification.
+        """
+        self.tier           = 1
+        self.level_up_count = 0
+        self.reload_tier_frames()
 
     def collect_bonus(self) -> None:
         self.score += 100

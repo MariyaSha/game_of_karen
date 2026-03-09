@@ -97,10 +97,13 @@ BOSS_SPAWN_Y        = FLOOR_Y
 BOSS_HEALTH         = 10
 BOSS_IDLE_DURATION  = 240       # frames boss stays idle/vulnerable
 BOSS_ATTACK_DURATION= 300       # frames boss attacks (immune)
-BOSS_FIREBALL_SPEED = 14        # ← was 7, doubled for range/difficulty
+BOSS_FIREBALL_SPEED = 14
 BOSS_FIREBALL_R     = 18
-BOSS_FIREBALL_INTERVAL = 70     # ← was 90, fire more often
-BOSS_FIREBALL_GRAVITY   = 0.20  # ← less gravity so balls travel further
+BOSS_FIREBALL_INTERVAL = 45     # ← was 70, fire every 45 frames (~1.3/sec)
+BOSS_FIREBALL_GRAVITY   = 0.20
+# Burst mode: every BOSS_BURST_INTERVAL frames fire BOSS_BURST_COUNT rapid shots
+BOSS_BURST_INTERVAL = 240       # every 4 seconds, fire a burst
+BOSS_BURST_COUNT    = 3         # 3 extra shots in quick succession (20-frame gap)
 
 # ─────────────────────────────────────────────
 #  PLATFORMS  (procedurally generated — see platform.py)

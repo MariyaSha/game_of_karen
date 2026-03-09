@@ -378,10 +378,12 @@ class GameManager:
             return
         for enemy in self.enemies:
             if enemy.rect.colliderect(self.karen.rect):
+                prev_tier = self.karen.tier
                 self.karen.take_damage(1)
                 self.particles.emit_hit(
                     self.karen.rect.centerx, self.karen.rect.centery
                 )
+                self._check_tier_regression(prev_tier)
                 break
 
     def _resolve_fireball_karen_collisions(self) -> None:
@@ -391,12 +393,25 @@ class GameManager:
             return
         for fb in list(self.boss.fireballs):
             if fb.rect.colliderect(self.karen.rect):
+                prev_tier = self.karen.tier
                 self.karen.take_damage(1)
                 self.particles.emit_hit(
                     self.karen.rect.centerx, self.karen.rect.centery
                 )
+                self._check_tier_regression(prev_tier)
                 fb.kill()
                 break
+
+    def _check_tier_regression(self, prev_tier: int) -> None:
+        """If Karen's tier dropped back to 1 this frame, fire a regression notification."""
+        if prev_tier > 1 and self.karen.tier == 1:
+            self._tier_flash     = 120
+            self._tier_flash_val = 1
+            self.notifications.add(
+                "⚠  TIER LOST — COLLECT TOKENS AGAIN  ⚠",
+                SCREEN_W // 2, SCREEN_H // 2 - 80,
+                NEON_PINK, font_size=28, duration=150,
+            )
 
     def _resolve_token_karen_collisions(self) -> None:
         """

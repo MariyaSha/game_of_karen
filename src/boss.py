@@ -41,6 +41,7 @@ from src.settings import (
     BOSS_HEALTH, BOSS_IDLE_DURATION, BOSS_ATTACK_DURATION,
     BOSS_FIREBALL_SPEED, BOSS_FIREBALL_R, BOSS_FIREBALL_INTERVAL,
     BOSS_FIREBALL_GRAVITY,
+    BOSS_BURST_INTERVAL, BOSS_BURST_COUNT,
     NEON_PINK, NEON_YELLOW, WHITE,
 )
 from src.asset_loader import assets
@@ -236,6 +237,9 @@ class BossManager:
         self.alive        : bool = True
         self._phase_timer : int  = BOSS_IDLE_DURATION
         self._fb_timer    : int  = 0
+        self._burst_timer : int  = BOSS_BURST_INTERVAL   # counts down to burst
+        self._burst_queue : int  = 0                     # shots remaining in current burst
+        self._burst_gap   : int  = 0                     # frames between burst shots
         self.hit_flash    : int  = 0
 
         self._idle_img    = assets["boss_idle"]
@@ -280,10 +284,28 @@ class BossManager:
 
     def _update_attack(self, karen_rect: pygame.Rect) -> None:
         self.image      = self._attack_img
+
+        # ── Regular interval shot ─────────────────────────────────────
         self._fb_timer -= 1
         if self._fb_timer <= 0:
             self._launch_fireball(karen_rect)
             self._fb_timer = BOSS_FIREBALL_INTERVAL
+
+        # ── Burst mode: fire BOSS_BURST_COUNT rapid shots every BOSS_BURST_INTERVAL ──
+        self._burst_timer -= 1
+        if self._burst_timer <= 0 and self._burst_queue == 0:
+            # Kick off a new burst
+            self._burst_queue = BOSS_BURST_COUNT
+            self._burst_gap   = 20          # 20 frames (~0.33 s) between burst shots
+            self._burst_timer = BOSS_BURST_INTERVAL
+
+        if self._burst_queue > 0:
+            self._burst_gap -= 1
+            if self._burst_gap <= 0:
+                self._launch_fireball(karen_rect)
+                self._burst_queue -= 1
+                self._burst_gap    = 20     # reset gap for next burst shot
+
         if self._phase_timer <= 0:
             self._switch_to_idle()
 
