@@ -19,6 +19,30 @@ TERM_VEL        = 18            # terminal fall velocity (px/frame)
 FLOOR_Y         = 645           # y-coordinate of the visual floor (pixels)
 
 # ─────────────────────────────────────────────
+#  WORLD / LEVEL LAYOUT
+# ─────────────────────────────────────────────
+# The game world is wider than the screen. Karen scrolls rightward until she
+# reaches the boss arena at WORLD_W - BOSS_ARENA_W.
+#
+#  ┌──────────────────────────────────────────────────────┐  ← WORLD_W
+#  │  scrolling section (platforms + enemies)             │
+#  │                               │  boss arena          │
+#  └──────────────────────────────────────────────────────┘
+#  0                        BOSS_TRIGGER_X         WORLD_W
+#
+# • WORLD_W          — total world width in pixels
+# • BOSS_TRIGGER_X   — world-X at which the boss encounter begins
+#   (camera locks here so Karen cannot scroll past the arena)
+# • BOSS_ARENA_W     — width of the boss fight area (≈ 1 screen)
+
+WORLD_W         = SCREEN_W * 6   # 8256 px total world
+BOSS_ARENA_W    = SCREEN_W        # boss fight occupies one screen width
+BOSS_TRIGGER_X  = WORLD_W - BOSS_ARENA_W   # camera locks at this world-X
+
+# Time (in seconds at 60 fps) before boss spawns after game starts
+BOSS_SPAWN_DELAY_FRAMES = 60 * 90   # 90 seconds
+
+# ─────────────────────────────────────────────
 #  KAREN PLAYER
 # ─────────────────────────────────────────────
 KAREN_SPEED         = 5         # horizontal move speed (px/frame)
@@ -31,17 +55,15 @@ KAREN_SPAWN_Y       = FLOOR_Y - KAREN_HEIGHT             # sits on floor
 KAREN_IFRAMES       = 90        # invincibility frames after hit
 KAREN_ANIM_SPEED    = 8         # frames per animation step
 
-# Sound-wave projectile
+# Sound-wave projectile  (FIX 4 — karen1 base radius cut 50%)
+# Base values are for Tier 1.  Tiers 2 & 3 scale up from these.
 WAVE_SPEED          = 9
-WAVE_INIT_R         = 12
-WAVE_MAX_R          = 90
-WAVE_GROW_RATE      = 2.5
+WAVE_INIT_R         = 6          # ← was 12, now 6  (−50%)
+WAVE_MAX_R          = 45         # ← was 90, now 45 (−50%)
+WAVE_GROW_RATE      = 1.25       # ← was 2.5, now 1.25 (−50%)
 
 # Level-up thresholds  (accumulated token_level_up pickups)
-# FIX: Lowered thresholds so tier evolution is achievable quickly.
-# Tier 1 → 2 after collecting 1 level_up token,
-# Tier 2 → 3 after collecting 3 level_up tokens total.
-TIER_THRESHOLDS     = {1: 0, 2: 1, 3: 3}   # at 1 level-up → Tier 2; at 3 → Tier 3
+TIER_THRESHOLDS     = {1: 0, 2: 1, 3: 3}   # at 1 → Tier 2; at 3 → Tier 3
 
 # ─────────────────────────────────────────────
 #  ENEMIES
@@ -69,19 +91,21 @@ SPAWN_INTERVALS     = [(800, 1500), (1800, 2500)]
 #  BOSS
 # ─────────────────────────────────────────────
 BOSS_HEIGHT         = int(SCREEN_H * 0.30)
-BOSS_SPAWN_X        = SCREEN_W - 220
+# Boss spawns at the far-right arena, centred horizontally within it
+BOSS_SPAWN_X        = WORLD_W - BOSS_ARENA_W + SCREEN_W // 2
 BOSS_SPAWN_Y        = FLOOR_Y
 BOSS_HEALTH         = 10
 BOSS_IDLE_DURATION  = 240       # frames boss stays idle/vulnerable
 BOSS_ATTACK_DURATION= 300       # frames boss attacks (immune)
-BOSS_FIREBALL_SPEED = 7
+BOSS_FIREBALL_SPEED = 14        # ← was 7, doubled for range/difficulty
 BOSS_FIREBALL_R     = 18
-BOSS_FIREBALL_INTERVAL = 90     # frames between fireball launches
-BOSS_FIREBALL_GRAVITY   = 0.30
+BOSS_FIREBALL_INTERVAL = 70     # ← was 90, fire more often
+BOSS_FIREBALL_GRAVITY   = 0.20  # ← less gravity so balls travel further
 
 # ─────────────────────────────────────────────
-#  PLATFORMS  (x, y, w, h)
+#  PLATFORMS  (procedurally generated — see platform.py)
 # ─────────────────────────────────────────────
+# Static fallback for first screen (also used for tests / non-procedural code)
 PLATFORM_DEFS = [
     (160,  490, 200, 18),
     (420,  390, 200, 18),
@@ -89,6 +113,15 @@ PLATFORM_DEFS = [
     (920,  340, 200, 18),
     (1150, 430, 200, 18),
 ]
+
+# Procedural platform generation parameters
+PLAT_SPACING_MIN    = 220       # min horizontal gap between platform centres
+PLAT_SPACING_MAX    = 420       # max horizontal gap
+PLAT_Y_MIN          = 300       # highest a platform can be (px from top)
+PLAT_Y_MAX          = 530       # lowest a platform can be (near floor)
+PLAT_W_MIN          = 160       # min platform width
+PLAT_W_MAX          = 260       # max platform width
+PLAT_H              = 18        # platform thickness
 
 # ─────────────────────────────────────────────
 #  TOKENS / ECONOMY

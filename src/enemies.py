@@ -29,6 +29,7 @@ import random
 import pygame
 from src.settings import (
     SCREEN_W, SCREEN_H, FLOOR_Y, GRAVITY, TERM_VEL,
+    WORLD_W, BOSS_TRIGGER_X,
     FLYER_SPEED, FLYER_AMP, FLYER_FREQ, FLYER_HEIGHT, FLYER_Y_RANGE,
     SKATER_SPEED, SKATER_HEIGHT, SKATER_Y,
     SLACKER_HEIGHT, SLACKER_HEALTH,
@@ -213,13 +214,14 @@ class SkaterEnemy(Enemy):
     def update(self) -> None:
         self._x += self._speed
 
-        # Bounce off world edges
+        # Bounce off world edges (not just SCREEN_W)
         if self._x <= 0:
             self._x     = 0
             self._speed = abs(self._speed)
             self._update_image()
-        elif self._x + self.rect.width >= SCREEN_W * 3:
-            self._x     = SCREEN_W * 3 - self.rect.width
+        elif self._x + self.rect.width >= BOSS_TRIGGER_X:
+            # Don't let skaters enter the boss arena
+            self._x     = float(BOSS_TRIGGER_X - self.rect.width)
             self._speed = -abs(self._speed)
             self._update_image()
 
@@ -259,13 +261,15 @@ class SlackerEnemy(Enemy):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def spawn_flyer() -> FlyerEnemy:
-    sx = random.randint(SCREEN_W, SCREEN_W + 200)
+    # Spawn just off-screen to the right of Karen's current viewport
+    # (camera scroll means SCREEN_W is correct as the spawn-ahead margin)
+    sx = random.randint(SCREEN_W, SCREEN_W + 300)
     sy = random.randint(*FLYER_Y_RANGE)
     return FlyerEnemy(sx, sy)
 
 
 def spawn_skater() -> SkaterEnemy:
-    sx = random.randint(SCREEN_W, SCREEN_W + 300)
+    sx = random.randint(SCREEN_W, SCREEN_W + 400)
     return SkaterEnemy(sx)
 
 

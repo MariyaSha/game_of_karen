@@ -21,6 +21,7 @@ import pygame
 from src.fonts import get_mono
 from src.settings import (
     SCREEN_W, SCREEN_H, FLOOR_Y,
+    WORLD_W,
     KAREN_SPEED, KAREN_JUMP_VEL, KAREN_MAX_HEALTH,
     KAREN_IFRAMES, KAREN_ANIM_SPEED,
     KAREN_HEIGHT, KAREN_SPAWN_X, KAREN_SPAWN_Y,
@@ -36,12 +37,15 @@ from src.asset_loader import assets
 #  SOUND WAVE PROJECTILE
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ── FIX 3: per-tier scaling tables ───────────────────────────────────────────
-# Each table maps tier → (initial_radius, max_radius, grow_rate, speed)
+# ── FIX 4: per-tier scaling tables (base = Tier 1, 50% smaller than original)
+# WAVE_INIT_R=6, WAVE_MAX_R=45, WAVE_GROW_RATE=1.25 in settings (already -50%)
+# Tier 1 uses those base values exactly.
+# Tier 2 = 1.5× base  → init 9, max 67.5, grow 1.875
+# Tier 3 = 2.2× base  → init 13.2, max 99, grow 2.75  (Full Karen Mode)
 _WAVE_TIER_PARAMS: dict[int, tuple[float, float, float, float]] = {
-    1: (WAVE_INIT_R * 0.7,  WAVE_MAX_R * 0.65, WAVE_GROW_RATE * 0.7,  WAVE_SPEED * 0.85),  # small/slow
-    2: (WAVE_INIT_R,        WAVE_MAX_R,         WAVE_GROW_RATE,         WAVE_SPEED        ),  # medium/default
-    3: (WAVE_INIT_R * 1.4,  WAVE_MAX_R * 1.35, WAVE_GROW_RATE * 1.4,  WAVE_SPEED * 1.2  ),  # large/fast
+    1: (WAVE_INIT_R,        WAVE_MAX_R,        WAVE_GROW_RATE,        WAVE_SPEED       ),
+    2: (WAVE_INIT_R * 1.5,  WAVE_MAX_R * 1.5,  WAVE_GROW_RATE * 1.5,  WAVE_SPEED * 1.1),
+    3: (WAVE_INIT_R * 2.2,  WAVE_MAX_R * 2.2,  WAVE_GROW_RATE * 2.2,  WAVE_SPEED * 1.3),
 }
 
 
@@ -97,8 +101,8 @@ class SoundWave(pygame.sprite.Sprite):
             int(self.x) - r, int(self.y) - r, r * 2, r * 2
         )
 
-        # Kill if off world bounds (generous margin = max possible radius)
-        if self.x < -(self._max_r + 100) or self.x > SCREEN_W * 3:
+        # Kill if off world bounds
+        if self.x < -(self._max_r + 100) or self.x > WORLD_W + self._max_r:
             self.alive_flag = False
             self.kill()
 

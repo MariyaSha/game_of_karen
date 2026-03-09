@@ -27,6 +27,7 @@ import pygame
 from src.settings import (
     SCREEN_W, SCREEN_H, FPS, TITLE,
     FLOOR_Y, PLATFORM_DEFS,
+    WORLD_W, BOSS_TRIGGER_X, BOSS_SPAWN_DELAY_FRAMES,
     NEON_CYAN, NEON_PINK, NEON_YELLOW, WHITE,
 )
 from src.asset_loader  import assets, load_all
@@ -57,13 +58,13 @@ class GameState:
 
 class GameManager:
 
-    # Score needed to unlock the boss encounter
-    BOSS_SCORE_THRESHOLD = 2000
-
     # How fast the camera trails Karen (0 = instant, 1 = never)
     _CAM_LAG  = 0.08
     # Where Karen is held on screen (left third)
     _CAM_FOCUS_X = SCREEN_W // 3
+    # Maximum camera_x before the boss arena wall (hard right boundary)
+    # Camera cannot scroll past BOSS_TRIGGER_X so Karen stays in the arena.
+    _CAM_MAX  = float(BOSS_TRIGGER_X)
 
     def __init__(self, screen: pygame.Surface) -> None:
         self.screen  = screen
@@ -71,9 +72,12 @@ class GameManager:
         self._state  = GameState.PLAYING
 
         # ── CAMERA ────────────────────────────────────────────────────────
-        # camera_x is the world-X that maps to the left edge of the screen.
-        # Starts at 0 so the origin matches screen-space on frame 1.
         self.camera_x : float = 0.0
+
+        # ── BOSS SPAWN TIMER ──────────────────────────────────────────────
+        # Boss spawns after BOSS_SPAWN_DELAY_FRAMES frames AND only once
+        # Karen has reached the boss arena (camera_x >= _CAM_MAX).
+        self._boss_frame_timer: int = BOSS_SPAWN_DELAY_FRAMES
 
         # ── subsystems ────────────────────────────────────────────────────
         self.hud          = HUD()
@@ -99,8 +103,11 @@ class GameManager:
         # ── enemy spawner ─────────────────────────────────────────────────
         self.spawner = EnemySpawner(self.enemies, self.tokens)
 
-        # Spawn Slackers on all platforms at game start
+        # Spawn Slackers on platforms at startup
         self._init_platform_slackers()
+
+        # ── HUD progress: show time-to-boss countdown ─────────────────────
+        self._boss_countdown_shown: bool = False
 
     # ── initialisation ────────────────────────────────────────────────────
 
@@ -149,6 +156,8 @@ class GameManager:
         self._boss_spawned = False
         self._tier_flash   = 0
         self.camera_x      = 0.0
+        self._boss_frame_timer = BOSS_SPAWN_DELAY_FRAMES
+        self._boss_countdown_shown = False
         self.spawner = EnemySpawner(self.enemies, self.tokens)
         self._init_platform_slackers()
         self._state  = GameState.PLAYING
@@ -157,16 +166,16 @@ class GameManager:
 
     def _update_camera(self) -> None:
         """
-        Smoothly lag the camera toward Karen's position so that she sits
-        at _CAM_FOCUS_X pixels from the left edge of the screen.
+        Smoothly lag the camera toward Karen, clamped to world bounds.
 
-        camera_x is the world coordinate of the left screen edge.
+        Hard right limit = BOSS_TRIGGER_X (boss arena left edge).
+        This prevents Karen from scrolling the camera past the boss arena,
+        so the boss is always visible within the final screen.
         """
         target_cam = self.karen.pos.x - self._CAM_FOCUS_X
-        # Lerp towards target (lag factor: smaller = faster catch-up)
         self.camera_x += (target_cam - self.camera_x) * (1.0 - self._CAM_LAG)
-        # Never scroll left of world origin
-        self.camera_x = max(0.0, self.camera_x)
+        # Clamp: never left of origin, never right past boss arena
+        self.camera_x = max(0.0, min(self.camera_x, self._CAM_MAX))
 
     def _world_to_screen(self, world_x: float) -> int:
         """Convert a world-X coordinate to screen-X."""
@@ -184,6 +193,7 @@ class GameManager:
 
         # Karen input + movement
         self.karen.handle_input(keys, self.waves)
+        self._clamp_karen_to_world()   # enforce world boundaries
         self.karen.apply_gravity()
         self.karen.resolve_floor()
         self.karen.platform_collide(self.platforms)
@@ -199,8 +209,8 @@ class GameManager:
         # Update waves
         self.waves.update()
 
-        # Spawner
-        self.spawner.update()
+        # Spawner — pass camera_x so enemies spawn ahead of Karen in world space
+        self.spawner.update(self.camera_x)
 
         # Update enemies
         for enemy in list(self.enemies):
@@ -210,10 +220,20 @@ class GameManager:
         for tok in list(self.tokens):
             tok.update(self.karen.rect)
 
-        # Boss check
-        if (not self._boss_spawned and
-                self.karen.score >= self.BOSS_SCORE_THRESHOLD):
-            self._spawn_boss()
+        # ── Boss timer countdown ──────────────────────────────────────────
+        if not self._boss_spawned:
+            self._boss_frame_timer -= 1
+            # 10-second warning
+            remaining = self._boss_frame_timer
+            if remaining == 600 and not self._boss_countdown_shown:
+                self._boss_countdown_shown = True
+                self.notifications.add(
+                    "\u26a0  THE MANAGER IS COMING  \u26a0",
+                    SCREEN_W // 2, SCREEN_H // 3,
+                    NEON_YELLOW, font_size=28, duration=180,
+                )
+            if self._boss_frame_timer <= 0:
+                self._spawn_boss()
 
         if self._boss_active and self.boss:
             self.boss.update(self.karen.rect)
@@ -242,16 +262,38 @@ class GameManager:
         self.boss          = BossManager()
         self._boss_active  = True
         self._boss_spawned = True
-        # Clear the floor to give Karen space
+        # Clear non-boss enemies so the arena is clear
         for enemy in list(self.enemies):
-            if isinstance(enemy, SkaterEnemy):
+            if not isinstance(enemy, SlackerEnemy):
                 enemy.kill()
 
+        # Warp Karen to the boss arena entrance (just inside left edge)
+        self.karen.pos.x = BOSS_TRIGGER_X + 80
+        self.karen.pos.y = float(self.karen.pos.y)   # keep current Y
+
         self.notifications.add(
-            "⚠  THE MANAGER ARRIVES  ⚠",
+            "\u26a0  THE MANAGER ARRIVES  \u26a0",
             SCREEN_W // 2, SCREEN_H // 3,
             NEON_PINK, font_size=34, duration=150,
         )
+
+    # ── Karen world-X clamp (arena wall after boss spawns) ────────────────
+
+    def _clamp_karen_to_world(self) -> None:
+        """
+        Before boss: Karen can walk freely up to WORLD_W.
+        After boss spawns: Karen is locked inside the boss arena
+          (BOSS_TRIGGER_X  ≤  Karen.pos.x  ≤  WORLD_W - karen_w).
+        """
+        if not self._boss_spawned:
+            # Prevent walking off left edge only
+            self.karen.pos.x = max(0.0, self.karen.pos.x)
+        else:
+            karen_w = self.karen.rect.width
+            self.karen.pos.x = max(
+                float(BOSS_TRIGGER_X),
+                min(self.karen.pos.x, float(WORLD_W - karen_w))
+            )
 
     # ── collision resolution ──────────────────────────────────────────────
 

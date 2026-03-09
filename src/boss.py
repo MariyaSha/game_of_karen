@@ -36,6 +36,7 @@ import pygame
 from src.fonts import get_mono
 from src.settings import (
     SCREEN_W, SCREEN_H, FLOOR_Y,
+    WORLD_W, BOSS_TRIGGER_X,
     BOSS_HEIGHT, BOSS_SPAWN_X, BOSS_SPAWN_Y,
     BOSS_HEALTH, BOSS_IDLE_DURATION, BOSS_ATTACK_DURATION,
     BOSS_FIREBALL_SPEED, BOSS_FIREBALL_R, BOSS_FIREBALL_INTERVAL,
@@ -84,13 +85,18 @@ class Fireball(pygame.sprite.Sprite):
         # ── FIX 5: state flag ─────────────────────────────────────────────
         self._landed       = False
         self._pool_timer   = 0
-        self._pool_pulse_t = 0.0   # for visual pulsing
+        self._pool_pulse_t = 0.0
 
-        dx     = tx - ox
-        dy     = ty - oy
-        dist   = max(math.hypot(dx, dy), 1)
+        # ── FIX 2: compute direction in world space and scale to BOSS_FIREBALL_SPEED
+        # Use a minimum horizontal distance so fireballs always travel meaningfully
+        dx   = tx - ox
+        dy   = ty - oy
+        dist = max(math.hypot(dx, dy), 1)
+        # Normalise then apply speed — this gives the correct world-space vector
         self._vx = (dx / dist) * BOSS_FIREBALL_SPEED
-        self._vy = (dy / dist) * BOSS_FIREBALL_SPEED * 0.6
+        self._vy = (dy / dist) * BOSS_FIREBALL_SPEED * 0.5
+        # Clamp _vy so fireballs don't go too steeply downward (they should arc)
+        self._vy = max(self._vy, -BOSS_FIREBALL_SPEED * 0.3)
         self._x  = float(ox)
         self._y  = float(oy)
 
@@ -116,8 +122,8 @@ class Fireball(pygame.sprite.Sprite):
             int(self._x) - r, int(self._y) - r, r * 2, r * 2
         )
 
-        # Off left/right screen → kill immediately
-        if self._x < -(r + 50) or self._x > SCREEN_W + r + 50:
+        # Off world left edge → kill (right edge checked by WORLD_W)
+        if self._x < -(r + 200) or self._x > WORLD_W + r:
             self.alive_flag = False
             self.kill()
             return
@@ -155,10 +161,10 @@ class Fireball(pygame.sprite.Sprite):
 
     def _draw_flying(self, surface: pygame.Surface, camera_x: int) -> None:
         r  = BOSS_FIREBALL_R
-        cx = int(self._x) - camera_x
+        cx = int(self._x) - camera_x   # world → screen
         cy = int(self._y)
-        # Skip if off screen
-        if cx + r < 0 or cx - r > SCREEN_W:
+        # Skip if off screen (screen-space check)
+        if cx + r * 2 < 0 or cx - r * 2 > SCREEN_W:
             return
         # Glow
         glow = pygame.Surface((r * 4, r * 4), pygame.SRCALPHA)
@@ -172,11 +178,11 @@ class Fireball(pygame.sprite.Sprite):
 
     def _draw_pool(self, surface: pygame.Surface, camera_x: int) -> None:
         """FIX 5: draw a flat pulsing elliptical fire pool at floor level."""
-        cx = int(self._x) - camera_x
+        cx = int(self._x) - camera_x   # world → screen
         cy = int(self._y)
 
-        # Skip if off screen
-        if cx + self._POOL_RX < 0 or cx - self._POOL_RX > SCREEN_W:
+        # Skip if off screen (screen-space check)
+        if cx + self._POOL_RX * 2 < 0 or cx - self._POOL_RX * 2 > SCREEN_W:
             return
 
         # Fade-out alpha based on remaining time
