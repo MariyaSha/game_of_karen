@@ -301,8 +301,82 @@ class BossManager:
     # ── fireball ──────────────────────────────────────────────────────────
 
     def _launch_fireball(self, karen_rect: pygame.Rect) -> None:
+        """
+        Launch a fireball that is physically aimed to land at a target X
+        spread across the full arena.
+
+        Instead of normalising a direction vector (which produces parabolic
+        overshoot because gravity is applied after the first frame), we
+        directly assign _vx and _vy so the fireball travels the desired
+        horizontal distance before hitting the floor.
+
+        Physics derivation (constant gravity, starting at boss centre):
+            time_to_floor = frames until y reaches FLOOR_Y
+            _vx = (target_x - boss_x) / time_to_floor
+
+        We split shots into:
+          • NEAR   (35 %) — right half of arena  (close to boss)
+          • FAR    (40 %) — left half of arena   (far from boss / near Karen)
+          • DIRECT (25 %) — aimed at Karen's current X ± 150 px jitter
+        """
         ox, oy = self.centre
-        fb     = Fireball(ox, oy, karen_rect.centerx, karen_rect.centery)
+        arena_left  = BOSS_TRIGGER_X + 60
+        arena_right = BOSS_SPAWN_X   - 80
+        arena_mid   = (arena_left + arena_right) // 2
+
+        roll = random.random()
+        if roll < 0.35:
+            # Near: right half of arena (between mid and boss)
+            target_x = random.randint(arena_mid, arena_right)
+        elif roll < 0.75:
+            # Far: left half of arena (between arena_left and mid)
+            target_x = random.randint(arena_left, arena_mid)
+        else:
+            # Direct: Karen's position with wide jitter
+            jitter = (arena_right - arena_left) // 3
+            target_x = karen_rect.centerx + random.randint(-jitter, jitter)
+            target_x = max(arena_left, min(target_x, arena_right))
+
+        # --- compute velocity to reach target_x at floor level ---
+        # Starting Y = oy, target Y = FLOOR_Y, gravity = BOSS_FIREBALL_GRAVITY
+        # y(t) = oy + vy*t + 0.5*g*t^2 = FLOOR_Y
+        # => 0.5*g*t^2 + vy*t + (oy - FLOOR_Y) = 0
+        # We want a pleasing arc: choose a moderate launch-up angle.
+        # Give it a small upward kick (negative vy) so arcs look nice;
+        # then time_to_floor is the positive root of the quadratic.
+        g        = BOSS_FIREBALL_GRAVITY
+        dy       = float(FLOOR_Y - oy)           # positive (floor is below boss)
+        # Choose initial vy: slight upward kick for short distances,
+        # bigger arc for longer shots
+        dx_abs   = abs(target_x - ox)
+        # vy_launch: small negative value → ball arcs slightly upward
+        vy_launch = -max(1.0, min(4.0, dx_abs / 200.0))
+
+        # Quadratic: g/2 * t^2 + vy_launch * t - dy = 0
+        # t = [-vy_launch + sqrt(vy_launch^2 + 2*g*dy)] / g  (positive root)
+        discriminant = vy_launch ** 2 + 2 * g * dy
+        if discriminant <= 0:
+            # Fallback: straight shot
+            t_land = max(1.0, dy / max(abs(vy_launch), 0.1))
+        else:
+            t_land = (-vy_launch + math.sqrt(discriminant)) / g
+
+        t_land = max(t_land, 1.0)   # at least 1 frame
+        vx_needed = (target_x - ox) / t_land
+
+        fb = Fireball.__new__(Fireball)
+        pygame.sprite.Sprite.__init__(fb)
+        fb.alive_flag    = True
+        fb._landed       = False
+        fb._pool_timer   = 0
+        fb._pool_pulse_t = 0.0
+        fb._vx           = vx_needed
+        fb._vy           = vy_launch
+        fb._x            = float(ox)
+        fb._y            = float(oy)
+        r                = BOSS_FIREBALL_R
+        fb.image         = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+        fb.rect          = pygame.Rect(int(fb._x) - r, int(fb._y) - r, r * 2, r * 2)
         self.fireballs.add(fb)
 
     # ── damage ────────────────────────────────────────────────────────────

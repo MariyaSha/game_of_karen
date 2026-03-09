@@ -155,7 +155,7 @@ class FlyerEnemy(Enemy):
     """
 
     def __init__(self, spawn_x: int, spawn_y: int) -> None:
-        super().__init__(health=1)
+        super().__init__(health=2)   # takes 2 hits to kill
         self._drop_token = "bonus"
 
         self._x      = float(spawn_x)
@@ -195,7 +195,7 @@ class SkaterEnemy(Enemy):
     """
 
     def __init__(self, spawn_x: int) -> None:
-        super().__init__(health=1)
+        super().__init__(health=2)   # takes 2 hits to kill
         self._drop_token = "level_up"
 
         self._x     = float(spawn_x)

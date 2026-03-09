@@ -75,8 +75,8 @@ class SoundWave(pygame.sprite.Sprite):
         self._grow    = grow
         self._speed   = speed
         self._tier    = tier          # store tier for update logic
-        # Tier 1/2: wave lingers at max radius for 20 frames so visuals look complete
-        self._linger  = 20
+        # Tier 1/2: wave vanishes immediately when max radius is reached (no linger)
+        self._linger  = 0
 
         self.x         = float(x)
         self.y         = float(y)
