@@ -194,7 +194,7 @@ class HUD:
     def _draw_panel(self, surface: pygame.Surface) -> None:
         panel = pygame.Surface((300, 126), pygame.SRCALPHA)
         panel.fill((0, 0, 0, 110))
-        pygame.draw.rect(panel, NEON_CYAN, panel.get_rect(), 1)
+        pygame.draw.rect(panel, WHITE, panel.get_rect(), 1)
         surface.blit(panel, (8, 8))
 
     # ── hearts ────────────────────────────────────────────────────────────
@@ -205,42 +205,59 @@ class HUD:
             col = self._HEART_FULL if i < health else self._HEART_EMPTY
             cx  = 22 + i * (hs + self._HEART_GAP)
             cy  = 22
-            # Two circles + triangle = heart
-            pygame.draw.circle(surface, col, (cx + hs // 4,      cy),     hs // 4)
-            pygame.draw.circle(surface, col, (cx + 3 * hs // 4,  cy),     hs // 4)
+            
+            # TACTICAL FIX: Solid heart polygon to remove the "gap"
+            # This creates a smooth, solid silhouette
             points = [
-                (cx,           cy + hs // 4),
-                (cx + hs // 2, cy + hs * 3 // 4),
-                (cx + hs,      cy + hs // 4),
+                (cx + hs // 2, cy + hs // 4),     # Top center dip
+                (cx + hs // 4, cy),              # Top left curve
+                (cx,           cy + hs // 4),     # Left point
+                (cx,           cy + hs // 2),     # Left side
+                (cx + hs // 2, cy + hs),          # Bottom point
+                (cx + hs,      cy + hs // 2),     # Right side
+                (cx + hs,      cy + hs // 4),     # Right point
+                (cx + 3 * hs // 4, cy),           # Top right curve
             ]
             pygame.draw.polygon(surface, col, points)
-            # Sheen
-            pygame.draw.circle(surface, (255, 160, 180),
-                               (cx + hs // 3, cy - 2), 3)
+            
+            # NEON SHEEN: Adds that Strategic Peer "glow"
+            if i < health:
+                pygame.draw.circle(surface, (255, 160, 180), (cx + hs // 3, cy + hs // 4), 3)
 
     # ── tier badge ────────────────────────────────────────────────────────
 
-    def _draw_tier(self, surface: pygame.Surface,
-                   tier: int, level_up_count: int) -> None:
-        tier_cols = {1: NEON_CYAN, 2: NEON_YELLOW, 3: NEON_PINK}
-        col       = tier_cols.get(tier, NEON_CYAN)
-        stars     = "\u2605" * tier + "\u2606" * (3 - tier)
-        txt       = self._font_md.render(f"TIER {tier}  {stars}", True, col)
-        surface.blit(txt, (16, 58))
-        # Progress bar toward next tier
-        if tier < 3:
-            next_thresh = TIER_THRESHOLDS.get(tier + 1, 99)
-            prog_txt = self._font_sm.render(
-                f"LVL-UP: {level_up_count}/{next_thresh}  [kill skaters]",
-                True, col
-            )
-            surface.blit(prog_txt, (16, 83))
+    def _draw_tier(self, surface: pygame.Surface, tier: int, level_up_count: int) -> None:
+        """
+        Local mapping to avoid adding extra object attributes.
+        """
+        # 1. Define the colors locally (no 'self.' needed)
+        tier_map = {
+            1: NEON_CYAN,
+            2: NEON_YELLOW,
+            3: NEON_PINK
+        }
+        
+        # 2. Get the color, defaulting to WHITE if tier is unknown
+        col = tier_map.get(tier, WHITE)
+        stars = "★" * tier + "☆" * (3 - tier)
+        
+        # 3. Draw the active Tier and Stars in Neon
+        tier_txt = self._font_sm.render(f"TIER {tier}  {stars}", True, col)
+        surface.blit(tier_txt, (16, 61))
+
+        # 4. Secondary info in WHITE (as requested)
+        next_thresh = TIER_THRESHOLDS.get(tier, "MAX")
+        prog_txt = self._font_sm.render(
+            f"LVL-UP: {level_up_count}/{next_thresh}    [get tokens]",
+            True, WHITE
+        )
+        surface.blit(prog_txt, (16, 81))
 
     # ── score ─────────────────────────────────────────────────────────────
 
     def _draw_score(self, surface: pygame.Surface, score: int) -> None:
         txt = self._font_sm.render(
-            f"CREDITS  {score:>7,}", True, NEON_CYAN
+            f"CREDITS  {score:>7,}", True, WHITE
         )
         surface.blit(txt, (16, 101))
 
@@ -272,7 +289,7 @@ class HUD:
         hint_surf.fill((0, 0, 0, 80))
         surface.blit(hint_surf, (0, SCREEN_H - 24))
         txt = self._font_sm.render(
-            "  A/D or ←/→ : MOVE     SPACE : JUMP     F : SOUND WAVE",
+            "  A/D or ←/→ : MOVE     SPACE : JUMP    F : SOUND WAVE ATTACK",
             True, (140, 140, 180)
         )
         surface.blit(txt, (SCREEN_W // 2 - txt.get_width() // 2, SCREEN_H - 22))
@@ -280,25 +297,45 @@ class HUD:
     # ── overlays ──────────────────────────────────────────────────────────
 
     def draw_game_over(self, surface: pygame.Surface) -> None:
+        # Use NEON_CYAN (bright blue neon) for the kick-out message
         self._draw_overlay(surface, "GAME OVER", NEON_PINK,
+                           "YOU'VE BEEN ASKED TO LEAVE!", NEON_CYAN,
                            "Press R to Restart or Q to Quit")
 
     def draw_victory(self, surface: pygame.Surface) -> None:
+        # For victory, we use NEON_YELLOW for the middle message
         self._draw_overlay(surface, "VICTORY!", NEON_YELLOW,
-                           "Karen has conquered the retail floor!  Press R or Q")
+                           "COMPENSATION RECEIVED", NEON_GREEN,
+                           "Your demends have been raised to corporate! Press R or Q")
 
     def _draw_overlay(self, surface: pygame.Surface,
-                      title: str, colour: tuple, sub: str) -> None:
+                      title: str, colour: tuple, 
+                      mid_msg: str, mid_col: tuple,
+                      sub: str) -> None:
+        """
+        Three-line neon overlay logic.
+        """
+        # 1. Dim the background
         overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
         surface.blit(overlay, (0, 0))
 
-        title_txt = self._font_xl.render(title, True, colour)
-        sub_txt   = self._font_md.render(sub,   True, WHITE)
-        cx        = SCREEN_W // 2
-        cy        = SCREEN_H // 2
-        surface.blit(title_txt, (cx - title_txt.get_width() // 2, cy - 80))
-        surface.blit(sub_txt,   (cx - sub_txt.get_width()   // 2, cy + 30))
+        # 2. Render all three text segments
+        title_txt = self._font_xl.render(title,   True, colour)
+        mid_txt   = self._font_lg.render(mid_msg, True, mid_col)
+        sub_txt   = self._font_md.render(sub,     True, WHITE)
+        
+        cx, cy = SCREEN_W // 2, SCREEN_H // 2
+        
+        # 3. Position them with Industrial Precision
+        # Top Line: Title
+        surface.blit(title_txt, (cx - title_txt.get_width() // 2, cy - 120))
+        
+        # Middle Line: The New Text (YOU WERE ASKED TO LEAVE / COMPENSATION)
+        surface.blit(mid_txt,  (cx - mid_txt.get_width() // 2,  cy - 20))
+        
+        # Bottom Line: Instructions
+        surface.blit(sub_txt,   (cx - sub_txt.get_width() // 2,   cy + 60))
 
     def draw_tier_up(self, surface: pygame.Surface, tier: int) -> None:
         """Full-screen brief flash for tier upgrade."""
@@ -307,7 +344,7 @@ class HUD:
         flash  = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
         flash.fill((*col, 30))
         surface.blit(flash, (0, 0))
-        txt = self._font_lg.render(f"TIER {tier} UNLOCKED!", True, col)
+        txt = self._font_lg.render(f"TIER {tier} KAREN IS HERE!", True, col)
         surface.blit(txt,
                      (SCREEN_W // 2 - txt.get_width() // 2,
                       SCREEN_H // 2 - txt.get_height() // 2))

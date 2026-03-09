@@ -48,21 +48,35 @@ class Platform(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int, w: int, h: int) -> None:
         super().__init__()
 
-        self.rect            = pygame.Rect(x, y, w, h)
+        # ── VISUAL SETUP ──────────────────────────────────────────────
+        self.visual_w = w  # Save the FULL width for drawing
+        self.visual_h = h
+        
+        # ── PHYSICS SETUP (The "Trim") ────────────────────────────────
+        trim = 25 
+        # The rect is now smaller than the visual width
+        self.rect = pygame.Rect(x + trim, y, w - (trim * 2), h)
+        
         self.slacker_spawned = False
-
-        self.image = pygame.Surface((w, h), pygame.SRCALPHA)
-        self._draw_surface()
+        self.image = pygame.Surface((self.visual_w, self.visual_h), pygame.SRCALPHA)
+        self._draw_surface() # Pass the full width to the draw helper
 
     def _draw_surface(self) -> None:
-        w, h = self.rect.w, self.rect.h
+        # Use the visual variables, NOT the physics rect
+        w, h = self.visual_w, self.visual_h
+        
         self.image.fill(self._SURFACE_COLOR)
+        
+        # Draw the top edge
         pygame.draw.line(
             self.image, self._EDGE_COLOR,
             (0, 0), (w, 0), self._EDGE_THICKNESS,
         )
-        pygame.draw.line(self.image, NEON_PINK, (0, 0),       (0, h),      1)
-        pygame.draw.line(self.image, NEON_PINK, (w-1, 0),     (w-1, h),    1)
+        
+        # Draw the side neon pink accents
+        pygame.draw.line(self.image, NEON_PINK, (0, 0),   (0, h),   1)
+        pygame.draw.line(self.image, NEON_PINK, (w-1, 0), (w-1, h), 1) 
+
 
     def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
         """Draw platform with soft glow, translated by camera_x."""
@@ -126,7 +140,7 @@ def create_platforms(seed: int | None = None) -> list[Platform]:
 
     # Leave BOSS_ARENA clearance (last SCREEN_W is the boss arena)
     # Only leave a 100-px pre-boss buffer so the level feels complete until the end
-    stop_x = BOSS_TRIGGER_X - 200
+    stop_x = BOSS_TRIGGER_X
 
     while cursor_x < stop_x:
         w = rng.randint(PLAT_W_MIN, PLAT_W_MAX)

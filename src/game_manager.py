@@ -117,7 +117,9 @@ class GameManager:
     # ── initialisation ────────────────────────────────────────────────────
 
     def _init_platform_slackers(self) -> None:
-        for plat in self.platforms:
+        for i, plat in enumerate(self.platforms):
+            if i == 0 or i % 2 != 1:
+                continue 
             if not plat.slacker_spawned:
                 slacker = spawn_slacker(plat)
                 self.enemies.add(slacker)
@@ -173,17 +175,12 @@ class GameManager:
     # ── camera ────────────────────────────────────────────────────────────
 
     def _update_camera(self) -> None:
-        """
-        Smoothly lag the camera toward Karen, clamped to world bounds.
-
-        Hard right limit = BOSS_TRIGGER_X (boss arena left edge).
-        This prevents Karen from scrolling the camera past the boss arena,
-        so the boss is always visible within the final screen.
-        """
         target_cam = self.karen.pos.x - self._CAM_FOCUS_X
         self.camera_x += (target_cam - self.camera_x) * (1.0 - self._CAM_LAG)
-        # Clamp: never left of origin, never right past boss arena
-        self.camera_x = max(0.0, min(self.camera_x, self._CAM_MAX))
+        
+        # REMOVE: self.camera_x = max(0.0, min(self.camera_x, self._CAM_MAX))
+        # NEW: Allow camera to follow Karen back through the whole world
+        self.camera_x = max(0.0, min(self.camera_x, WORLD_W - SCREEN_W))
 
     def _world_to_screen(self, world_x: float) -> int:
         """Convert a world-X coordinate to screen-X."""
@@ -235,7 +232,7 @@ class GameManager:
             if not self._approaching_warned_far and karen_x >= BOSS_TRIGGER_X - SCREEN_W * 2:
                 self._approaching_warned_far = True
                 self.notifications.add(
-                    "\U0001f4a1  APPROACHING MANAGER  \U0001f4a1",
+                    "\u26A0  APPROACHING MANAGER  \u26A0",
                     SCREEN_W // 2, SCREEN_H // 3,
                     NEON_YELLOW, font_size=26, duration=150,
                 )
@@ -249,7 +246,7 @@ class GameManager:
                 )
 
             # Once the camera is locked at the boss arena, start the arrival countdown
-            if not self._karen_reached_arena and self.camera_x >= self._CAM_MAX - 5:
+            if not self._karen_reached_arena and self.karen.pos.x >= BOSS_TRIGGER_X - 600:
                 self._karen_reached_arena = True
 
             if self._karen_reached_arena:
@@ -258,7 +255,7 @@ class GameManager:
                 if self._boss_frame_timer == 180 and not self._boss_countdown_shown:
                     self._boss_countdown_shown = True
                     self.notifications.add(
-                        "\u26a0  THE MANAGER ARRIVES  \u26a0",
+                        "\u26a0  THE MANAGER ARRIVED  \u26a0",
                         SCREEN_W // 2, SCREEN_H // 3,
                         NEON_YELLOW, font_size=34, duration=180,
                     )
@@ -304,7 +301,7 @@ class GameManager:
             self.karen.pos.x = arena_entrance
 
         self.notifications.add(
-            "\u26a0  THE MANAGER ARRIVES  \u26a0",
+            "\u26a0  THE MANAGER ARRIVED  \u26a0",
             SCREEN_W // 2, SCREEN_H // 3,
             NEON_PINK, font_size=34, duration=150,
         )
@@ -313,19 +310,15 @@ class GameManager:
 
     def _clamp_karen_to_world(self) -> None:
         """
-        Before boss: Karen can walk freely up to WORLD_W.
-        After boss spawns: Karen is locked inside the boss arena
-          (BOSS_TRIGGER_X  ≤  Karen.pos.x  ≤  WORLD_W - karen_w).
+        REFACTOR: Allow Karen to retreat from the boss arena to dodge projectiles.
         """
         if not self._boss_spawned:
-            # Prevent walking off left edge only
             self.karen.pos.x = max(0.0, self.karen.pos.x)
         else:
+            # Remove the BOSS_TRIGGER_X floor for the left clamp
+            # This allows you to run back into the platforming section
             karen_w = self.karen.rect.width
-            self.karen.pos.x = max(
-                float(BOSS_TRIGGER_X),
-                min(self.karen.pos.x, float(WORLD_W - karen_w))
-            )
+            self.karen.pos.x = max(0.0, min(self.karen.pos.x, float(WORLD_W - karen_w)))
 
     # ── collision resolution ──────────────────────────────────────────────
 
@@ -376,8 +369,14 @@ class GameManager:
     def _resolve_enemy_karen_collisions(self) -> None:
         if self.karen._iframe_timer > 0:
             return
+
+        # TACTICAL FIX: Create a smaller "hurtbox" for Karen
+        # This shrinks her hitbox by 25% on each side to ignore transparent padding
+        karen_hurtbox = self.karen.rect.inflate(-self.karen.rect.width * 0.7, 
+                                               -self.karen.rect.height * 0.7)
+
         for enemy in self.enemies:
-            if enemy.rect.colliderect(self.karen.rect):
+            if enemy.rect.colliderect(karen_hurtbox):
                 prev_tier = self.karen.tier
                 self.karen.take_damage(1)
                 self.particles.emit_hit(
@@ -391,8 +390,13 @@ class GameManager:
             return
         if self.karen._iframe_timer > 0:
             return
+
+        # Use the same deflated hurtbox for projectile consistency
+        karen_hurtbox = self.karen.rect.inflate(-self.karen.rect.width * 0.25, 
+                                               -self.karen.rect.height * 0.25)
+
         for fb in list(self.boss.fireballs):
-            if fb.rect.colliderect(self.karen.rect):
+            if fb.rect.colliderect(karen_hurtbox):
                 prev_tier = self.karen.tier
                 self.karen.take_damage(1)
                 self.particles.emit_hit(
@@ -408,7 +412,7 @@ class GameManager:
             self._tier_flash     = 120
             self._tier_flash_val = 1
             self.notifications.add(
-                "⚠  TIER LOST — COLLECT TOKENS AGAIN  ⚠",
+                "\u26A0  TIER LOST — COLLECT TOKENS AGAIN  \u26A0",
                 SCREEN_W // 2, SCREEN_H // 2 - 80,
                 NEON_PINK, font_size=28, duration=150,
             )
@@ -436,9 +440,17 @@ class GameManager:
                 hit  = (dx < 80 and dy < 70)
 
             if hit:
+                # ── TIER 3 SKIP LOGIC ──────────────────────────────────
+                # If Karen is max tier, she ignores Level Up tokens.
+                # They stay in the world (no .kill()) for later use.
+                if tok.token_type == "level_up" and self.karen.tier >= 3:
+                    continue 
+                # ───────────────────────────────────────────────────────
+
                 self.particles.emit_collect(
                     self._world_to_screen(int(tok._x)), int(tok._y), tok.token_type
                 )
+                
                 if tok.token_type == "bonus":
                     self.karen.collect_bonus()
                     self.notifications.add(
@@ -447,21 +459,22 @@ class GameManager:
                         int(tok._y) - 16,
                         NEON_CYAN, font_size=18, duration=50,
                     )
+                    tok.kill() # Always collect bonus credits
+                    
                 elif tok.token_type == "level_up":
                     old_tier = self.karen.tier
-                    self.karen.collect_level_up()      # increments count + may set tier
-                    self.karen.reload_tier_frames()    # swap sprite immediately
+                    self.karen.collect_level_up()
+                    self.karen.reload_tier_frames()
                     self.notifications.add(
                         f"LEVEL UP TOKEN! ({self.karen.level_up_count})",
                         self._world_to_screen(int(tok._x)),
                         int(tok._y) - 16,
                         NEON_YELLOW, font_size=20, duration=70,
                     )
-                    # Immediate tier-flash when tier actually changed
                     if self.karen.tier != old_tier:
                         self._tier_flash     = 120
                         self._tier_flash_val = self.karen.tier
-                tok.kill()
+                    tok.kill() # Only kill if we actually collected it
 
         # Tier notification (catches any tier change this frame)
         if self.karen.tier != prev_tier:

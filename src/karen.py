@@ -183,6 +183,7 @@ class Karen(pygame.sprite.Sprite):
         self.vel_y      : float = 0.0
         self.on_ground  : bool  = False
         self.facing     : int   = 1          # +1 right, -1 left
+        self.jumps_left : int   = 2
 
         # ── state ────────────────────────────────────────────────────────
         self.state      : str   = "walk"
@@ -255,6 +256,20 @@ class Karen(pygame.sprite.Sprite):
             self.vel_y     = KAREN_JUMP_VEL
             self.on_ground = False
 
+        # ── REFACTORED JUMP LOGIC ──────────────────────────────────────
+        jump_key = keys[pygame.K_SPACE] or keys[pygame.K_UP]
+
+        # Trigger only on the initial "down" press (Debounced)
+        if jump_key and not self._jump_held:
+            if self.jumps_left > 0:
+                self.vel_y = KAREN_JUMP_VEL
+                self.on_ground = False
+                self.jumps_left -= 1
+        
+        self._jump_held = jump_key # Update state for next frame
+        # ────────────────────────────────────────────────────────────────
+
+
         # Attack (F key) — spawn wave if not on cooldown
         if keys[pygame.K_f] and self._attack_timer == 0:
             self._attack_timer = self._attack_duration
@@ -270,6 +285,8 @@ class Karen(pygame.sprite.Sprite):
             self.state = "jump" if self.vel_y < 0 else "fall"
         else:
             self.state = "walk"
+
+
 
     # ── physics ───────────────────────────────────────────────────────────
 
@@ -294,7 +311,8 @@ class Karen(pygame.sprite.Sprite):
         self.pos.y     = surface_y - self.rect.height
         self.vel_y     = 0.0
         self.on_ground = True           # set back to True here — never elsewhere
-
+        self.jumps_left = 2 # Reset to 2 for the next sequence
+        
     def resolve_floor(self) -> None:
         """Hard floor boundary — sets on_ground if Karen hits the floor."""
         floor_surface = FLOOR_Y - self.rect.height
@@ -385,7 +403,12 @@ class Karen(pygame.sprite.Sprite):
         if self._iframe_timer > 0 and (self._iframe_timer // 6) % 2 == 0:
             return
         screen_x = int(self.pos.x) - camera_x
-        surface.blit(self.image, (screen_x, int(self.pos.y)))
+        # ── TACTICAL VISUAL OFFSET ─────────────────────────────────────
+        # We physically land on the platform, but draw 12% lower to 
+        # hide the transparent padding under her feet.
+        visual_sink = int(self.rect.height * 0.12) 
+        surface.blit(self.image, (screen_x, int(self.pos.y) + visual_sink))
+        # ────────────────────────────────────────────────────────────────
 
     # ── HUD helpers ───────────────────────────────────────────────────────
 

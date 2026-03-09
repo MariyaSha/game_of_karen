@@ -16,7 +16,7 @@ TITLE           = "Game of Karen"
 # ─────────────────────────────────────────────
 GRAVITY         = 0.55          # pixels per frame²
 TERM_VEL        = 18            # terminal fall velocity (px/frame)
-FLOOR_Y         = 645           # y-coordinate of the visual floor (pixels)
+FLOOR_Y         = 660           # y-coordinate of the visual floor (pixels)
 
 # ─────────────────────────────────────────────
 #  WORLD / LEVEL LAYOUT
@@ -48,7 +48,7 @@ BOSS_SPAWN_DELAY_FRAMES = 60 * 2   # 2 seconds after Karen enters the arena
 KAREN_SPEED         = 5         # horizontal move speed (px/frame)
 KAREN_JUMP_VEL      = -14       # initial jump velocity
 KAREN_MAX_HEALTH    = 5         # hearts
-KAREN_HEIGHT_PCT    = 0.15      # 15 % of screen height
+KAREN_HEIGHT_PCT    = 0.25      # 15 % of screen height
 KAREN_HEIGHT        = int(SCREEN_H * KAREN_HEIGHT_PCT)   # ~115 px
 KAREN_SPAWN_X       = 120
 KAREN_SPAWN_Y       = FLOOR_Y - KAREN_HEIGHT             # sits on floor
@@ -70,39 +70,39 @@ TIER_THRESHOLDS     = {1: 0, 2: 1, 3: 2}   # at 1 → Tier 2; at 2 → Tier 3
 # ─────────────────────────────────────────────
 # Flyer (sine-wave jetpack)
 FLYER_SPEED         = 3
-FLYER_AMP           = 60        # sine amplitude (px)
+FLYER_AMP           = 80       # sine amplitude (px)
 FLYER_FREQ          = 0.04      # sine frequency (rad/frame)
-FLYER_HEIGHT        = int(SCREEN_H * 0.11)
+FLYER_HEIGHT        = int(SCREEN_H * 0.25)
 FLYER_Y_RANGE       = (120, 420)  # random spawn y-band
 
 # Skater (fast ground patrol)
 SKATER_SPEED        = 5
-SKATER_HEIGHT       = int(SCREEN_H * 0.11)
+SKATER_HEIGHT       = int(SCREEN_H * 0.20)
 SKATER_Y            = FLOOR_Y   # feet on floor
 
 # Slacker (static platform tank)
-SLACKER_HEIGHT      = int(SCREEN_H * 0.12)
+SLACKER_HEIGHT      = int(SCREEN_H * 0.14)
 SLACKER_HEALTH      = 3         # takes 3 hits to kill
 
 # Spawn-X intervals
-SPAWN_INTERVALS     = [(800, 1500), (1800, 2500)]
+SPAWN_INTERVALS     = [(2500, 4000), (1800, 2500)]
 
 # ─────────────────────────────────────────────
 #  BOSS
 # ─────────────────────────────────────────────
-BOSS_HEIGHT         = int(SCREEN_H * 0.30)
+BOSS_HEIGHT         = int(SCREEN_H * 0.40)
 # Boss spawns at the far-right arena, centred horizontally within it
-BOSS_SPAWN_X        = WORLD_W - BOSS_ARENA_W + SCREEN_W // 2
+BOSS_SPAWN_X        = WORLD_W - BOSS_ARENA_W + SCREEN_W - 400
 BOSS_SPAWN_Y        = FLOOR_Y
 BOSS_HEALTH         = 10
 BOSS_IDLE_DURATION  = 240       # frames boss stays idle/vulnerable
 BOSS_ATTACK_DURATION= 300       # frames boss attacks (immune)
-BOSS_FIREBALL_SPEED = 14
+BOSS_FIREBALL_SPEED = 10
 BOSS_FIREBALL_R     = 18
-BOSS_FIREBALL_INTERVAL = 45     # ← was 70, fire every 45 frames (~1.3/sec)
+BOSS_FIREBALL_INTERVAL = 55     # ← was 70, fire every 45 frames (~1.3/sec)
 BOSS_FIREBALL_GRAVITY   = 0.20
 # Burst mode: every BOSS_BURST_INTERVAL frames fire BOSS_BURST_COUNT rapid shots
-BOSS_BURST_INTERVAL = 240       # every 4 seconds, fire a burst
+BOSS_BURST_INTERVAL = 360       # every 5 seconds, fire a burst
 BOSS_BURST_COUNT    = 3         # 3 extra shots in quick succession (20-frame gap)
 
 # ─────────────────────────────────────────────
@@ -121,16 +121,16 @@ PLATFORM_DEFS = [
 PLAT_SPACING_MIN    = 180       # min horizontal gap between platforms
 PLAT_SPACING_MAX    = 320       # max horizontal gap (reduced for consistency)
 PLAT_Y_MIN          = 300       # highest a platform can be (px from top)
-PLAT_Y_MAX          = 520       # lowest a platform can be (near floor)
-PLAT_W_MIN          = 180       # min platform width
-PLAT_W_MAX          = 280       # max platform width
+PLAT_Y_MAX          = 620       # lowest a platform can be (near floor)
+PLAT_W_MIN          = 100       # min platform width
+PLAT_W_MAX          = 550       # max platform width
 PLAT_H              = 18        # platform thickness
 
 # ─────────────────────────────────────────────
 #  TOKENS / ECONOMY
 # ─────────────────────────────────────────────
-TOKEN_BONUS_SIZE    = 36
-TOKEN_LEVELUP_SIZE  = 48
+TOKEN_BONUS_SIZE    = 50
+TOKEN_LEVELUP_SIZE  = 50
 TOKEN_SPEED         = 0         # tokens fall with gravity
 TOKEN_GRAVITY       = 0.4
 # Token magnet: radius (world-px) within which tokens slide toward Karen

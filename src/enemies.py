@@ -156,7 +156,7 @@ class FlyerEnemy(Enemy):
 
     def __init__(self, spawn_x: int, spawn_y: int) -> None:
         super().__init__(health=2)   # takes 2 hits to kill
-        self._drop_token = "bonus"
+        self._drop_token = "level_up"
 
         self._x      = float(spawn_x)
         self._y      = float(spawn_y)
@@ -196,7 +196,7 @@ class SkaterEnemy(Enemy):
 
     def __init__(self, spawn_x: int) -> None:
         super().__init__(health=2)   # takes 2 hits to kill
-        self._drop_token = "level_up"
+        self._drop_token = "bonus"
 
         self._x     = float(spawn_x)
         self._speed = -SKATER_SPEED
@@ -244,7 +244,7 @@ class SlackerEnemy(Enemy):
 
     def __init__(self, platform_x: int, platform_y: int) -> None:
         super().__init__(health=SLACKER_HEALTH)
-        self._drop_token = "level_up"   # Slackers also grant tier-up tokens
+        self._drop_token = "bonus"   # Slackers also grant tier-up tokens
 
         self.image = assets["slacker_right"]
         w, h       = self.image.get_size()
