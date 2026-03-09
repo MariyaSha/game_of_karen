@@ -39,8 +39,8 @@ WORLD_W         = SCREEN_W * 6   # 8256 px total world
 BOSS_ARENA_W    = SCREEN_W        # boss fight occupies one screen width
 BOSS_TRIGGER_X  = WORLD_W - BOSS_ARENA_W   # camera locks at this world-X
 
-# Time (in seconds at 60 fps) before boss spawns after game starts
-BOSS_SPAWN_DELAY_FRAMES = 60 * 90   # 90 seconds
+# Time (in frames) the boss waits to appear AFTER Karen reaches the boss arena
+BOSS_SPAWN_DELAY_FRAMES = 60 * 2   # 2 seconds after Karen enters the arena
 
 # ─────────────────────────────────────────────
 #  KAREN PLAYER
@@ -63,7 +63,7 @@ WAVE_MAX_R          = 45         # ← was 90, now 45 (−50%)
 WAVE_GROW_RATE      = 1.25       # ← was 2.5, now 1.25 (−50%)
 
 # Level-up thresholds  (accumulated token_level_up pickups)
-TIER_THRESHOLDS     = {1: 0, 2: 1, 3: 3}   # at 1 → Tier 2; at 3 → Tier 3
+TIER_THRESHOLDS     = {1: 0, 2: 1, 3: 2}   # at 1 → Tier 2; at 2 → Tier 3
 
 # ─────────────────────────────────────────────
 #  ENEMIES
@@ -115,12 +115,12 @@ PLATFORM_DEFS = [
 ]
 
 # Procedural platform generation parameters
-PLAT_SPACING_MIN    = 220       # min horizontal gap between platform centres
-PLAT_SPACING_MAX    = 420       # max horizontal gap
+PLAT_SPACING_MIN    = 180       # min horizontal gap between platforms
+PLAT_SPACING_MAX    = 320       # max horizontal gap (reduced for consistency)
 PLAT_Y_MIN          = 300       # highest a platform can be (px from top)
-PLAT_Y_MAX          = 530       # lowest a platform can be (near floor)
-PLAT_W_MIN          = 160       # min platform width
-PLAT_W_MAX          = 260       # max platform width
+PLAT_Y_MAX          = 520       # lowest a platform can be (near floor)
+PLAT_W_MIN          = 180       # min platform width
+PLAT_W_MAX          = 280       # max platform width
 PLAT_H              = 18        # platform thickness
 
 # ─────────────────────────────────────────────

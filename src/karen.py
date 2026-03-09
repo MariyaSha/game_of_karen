@@ -74,6 +74,9 @@ class SoundWave(pygame.sprite.Sprite):
         self._max_r   = max_r
         self._grow    = grow
         self._speed   = speed
+        self._tier    = tier          # store tier for update logic
+        # Tier 1/2: wave lingers at max radius for 20 frames so visuals look complete
+        self._linger  = 20
 
         self.x         = float(x)
         self.y         = float(y)
@@ -92,8 +95,19 @@ class SoundWave(pygame.sprite.Sprite):
     # ── update ───────────────────────────────────────────────────────────
 
     def update(self) -> None:
-        self.x      += self._speed * self.direction
-        self.radius  = min(self.radius + self._grow, self._max_r)
+        self.radius = min(self.radius + self._grow, self._max_r)
+
+        # Tier 1 and 2: stop translating once radius reaches maximum.
+        # Tier 3 keeps moving across the whole screen (full power).
+        if self._tier < 3:
+            if self.radius >= self._max_r:
+                # Wave has fully expanded — stop moving, keep hitbox in place
+                pass
+            else:
+                self.x += self._speed * self.direction
+        else:
+            # Tier 3: always travel forward
+            self.x += self._speed * self.direction
 
         # Keep rect in sync (world-space) for collision detection
         r = int(self.radius)
@@ -101,10 +115,19 @@ class SoundWave(pygame.sprite.Sprite):
             int(self.x) - r, int(self.y) - r, r * 2, r * 2
         )
 
-        # Kill if off world bounds
-        if self.x < -(self._max_r + 100) or self.x > WORLD_W + self._max_r:
-            self.alive_flag = False
-            self.kill()
+        # Kill if off world bounds (tier 3 travels; tier 1/2 die when max reached
+        # and then fade — we kill them after a short linger for visual effect)
+        if self._tier < 3:
+            # For tier 1/2: kill once radius is maxed AND we've lingered a bit
+            if self.radius >= self._max_r:
+                self._linger -= 1
+                if self._linger <= 0:
+                    self.alive_flag = False
+                    self.kill()
+        else:
+            if self.x < -(self._max_r + 100) or self.x > WORLD_W + self._max_r:
+                self.alive_flag = False
+                self.kill()
 
     # ── draw ─────────────────────────────────────────────────────────────
 

@@ -125,8 +125,8 @@ def create_platforms(seed: int | None = None) -> list[Platform]:
     )
 
     # Leave BOSS_ARENA clearance (last SCREEN_W is the boss arena)
-    # Also leave a 200-px pre-boss buffer so Karen can see the arena entrance
-    stop_x = BOSS_TRIGGER_X - 400
+    # Only leave a 100-px pre-boss buffer so the level feels complete until the end
+    stop_x = BOSS_TRIGGER_X - 200
 
     while cursor_x < stop_x:
         w = rng.randint(PLAT_W_MIN, PLAT_W_MAX)

@@ -27,7 +27,7 @@ import pygame
 from src.settings import (
     SCREEN_W, SCREEN_H, FPS, TITLE,
     FLOOR_Y, PLATFORM_DEFS,
-    WORLD_W, BOSS_TRIGGER_X, BOSS_SPAWN_DELAY_FRAMES,
+    WORLD_W, BOSS_TRIGGER_X, BOSS_SPAWN_DELAY_FRAMES, BOSS_SPAWN_X,
     NEON_CYAN, NEON_PINK, NEON_YELLOW, WHITE,
 )
 from src.asset_loader  import assets, load_all
@@ -75,9 +75,14 @@ class GameManager:
         self.camera_x : float = 0.0
 
         # ── BOSS SPAWN TIMER ──────────────────────────────────────────────
-        # Boss spawns after BOSS_SPAWN_DELAY_FRAMES frames AND only once
-        # Karen has reached the boss arena (camera_x >= _CAM_MAX).
-        self._boss_frame_timer: int = BOSS_SPAWN_DELAY_FRAMES
+        # Boss spawns ONLY after Karen reaches the boss arena (camera_x >= _CAM_MAX).
+        # Once she arrives, we give a short delay (BOSS_SPAWN_DELAY_FRAMES after arrival)
+        # before the boss appears, so she can see the arena first.
+        self._boss_frame_timer: int = BOSS_SPAWN_DELAY_FRAMES  # counts down after arrival
+        self._karen_reached_arena: bool = False   # True once camera reaches _CAM_MAX
+        # Proximity-warning zones (world-X thresholds, counting from right edge)
+        self._approaching_warned_far  : bool = False  # shown at ~2 screens away
+        self._approaching_warned_near : bool = False  # shown at ~1 screen away
 
         # ── subsystems ────────────────────────────────────────────────────
         self.hud          = HUD()
@@ -158,6 +163,9 @@ class GameManager:
         self.camera_x      = 0.0
         self._boss_frame_timer = BOSS_SPAWN_DELAY_FRAMES
         self._boss_countdown_shown = False
+        self._karen_reached_arena  = False
+        self._approaching_warned_far  = False
+        self._approaching_warned_near = False
         self.spawner = EnemySpawner(self.enemies, self.tokens)
         self._init_platform_slackers()
         self._state  = GameState.PLAYING
@@ -220,20 +228,42 @@ class GameManager:
         for tok in list(self.tokens):
             tok.update(self.karen.rect)
 
-        # ── Boss timer countdown ──────────────────────────────────────────
+        # ── Boss proximity warnings (before Karen reaches the arena) ──────
         if not self._boss_spawned:
-            self._boss_frame_timer -= 1
-            # 10-second warning
-            remaining = self._boss_frame_timer
-            if remaining == 600 and not self._boss_countdown_shown:
-                self._boss_countdown_shown = True
+            karen_x = self.karen.pos.x
+            # Far warning: ~2 screens before the boss trigger
+            if not self._approaching_warned_far and karen_x >= BOSS_TRIGGER_X - SCREEN_W * 2:
+                self._approaching_warned_far = True
                 self.notifications.add(
-                    "\u26a0  THE MANAGER IS COMING  \u26a0",
+                    "\U0001f4a1  APPROACHING MANAGER  \U0001f4a1",
                     SCREEN_W // 2, SCREEN_H // 3,
-                    NEON_YELLOW, font_size=28, duration=180,
+                    NEON_YELLOW, font_size=26, duration=150,
                 )
-            if self._boss_frame_timer <= 0:
-                self._spawn_boss()
+            # Near warning: ~half screen before the boss trigger
+            if not self._approaching_warned_near and karen_x >= BOSS_TRIGGER_X - SCREEN_W // 2:
+                self._approaching_warned_near = True
+                self.notifications.add(
+                    "\u26a0  THE MANAGER IS WAITING  \u26a0",
+                    SCREEN_W // 2, SCREEN_H // 3,
+                    NEON_PINK, font_size=30, duration=180,
+                )
+
+            # Once the camera is locked at the boss arena, start the arrival countdown
+            if not self._karen_reached_arena and self.camera_x >= self._CAM_MAX - 5:
+                self._karen_reached_arena = True
+
+            if self._karen_reached_arena:
+                self._boss_frame_timer -= 1
+                # 3-second warning just before boss appears
+                if self._boss_frame_timer == 180 and not self._boss_countdown_shown:
+                    self._boss_countdown_shown = True
+                    self.notifications.add(
+                        "\u26a0  THE MANAGER ARRIVES  \u26a0",
+                        SCREEN_W // 2, SCREEN_H // 3,
+                        NEON_YELLOW, font_size=34, duration=180,
+                    )
+                if self._boss_frame_timer <= 0:
+                    self._spawn_boss()
 
         if self._boss_active and self.boss:
             self.boss.update(self.karen.rect)
@@ -267,9 +297,11 @@ class GameManager:
             if not isinstance(enemy, SlackerEnemy):
                 enemy.kill()
 
-        # Warp Karen to the boss arena entrance (just inside left edge)
-        self.karen.pos.x = BOSS_TRIGGER_X + 80
-        self.karen.pos.y = float(self.karen.pos.y)   # keep current Y
+        # Karen is already inside the arena (camera locked here).
+        # Ensure she is at the arena entrance so she faces the boss.
+        arena_entrance = float(BOSS_TRIGGER_X + 80)
+        if self.karen.pos.x < arena_entrance:
+            self.karen.pos.x = arena_entrance
 
         self.notifications.add(
             "\u26a0  THE MANAGER ARRIVES  \u26a0",

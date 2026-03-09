@@ -244,7 +244,7 @@ class SlackerEnemy(Enemy):
 
     def __init__(self, platform_x: int, platform_y: int) -> None:
         super().__init__(health=SLACKER_HEALTH)
-        self._drop_token = "bonus"
+        self._drop_token = "level_up"   # Slackers also grant tier-up tokens
 
         self.image = assets["slacker_right"]
         w, h       = self.image.get_size()
