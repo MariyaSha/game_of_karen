@@ -6,7 +6,7 @@ import os
 import pygame
 
 _AUDIO_DIR  = os.path.join(os.path.dirname(__file__), "..", "audio")
-_THEME_FILE = "theme_music_infected_vibes"
+_THEME_FILE = "theme_music_genspark"
 _BOSS_FILE  = "boss_arrives" # The key for your boss music file
 
 class SoundManager:
