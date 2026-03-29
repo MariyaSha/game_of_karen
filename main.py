@@ -17,7 +17,7 @@ Controls
 import os
 os.environ['SDL_AUDIODRIVER'] = 'pulseaudio' 
 # Force PulseAudio to stop being 'helpful' with buffering
-os.environ['PULSE_LATENCY_MSEC'] = "15" 
+os.environ['PULSE_LATENCY_MSEC'] = "30" 
 
 import sys
 import pygame
@@ -33,12 +33,10 @@ from src.settings     import SCREEN_W, SCREEN_H, FPS, TITLE
 from src.asset_loader import load_all
 from src.game_manager import GameManager
 
-os.environ['PULSE_LATENCY_MSEC'] = "5"
-
 def main() -> None:
-    pygame.mixer.pre_init(44100, -16, 2, 256)
+    pygame.mixer.pre_init(48000, -16, 2, 1024)
     pygame.init()
-    pygame.mixer.set_num_channels(16) # Reserve 16 clear paths for sound
+    pygame.mixer.set_num_channels(32) # Reserve 16 clear paths for sound
 
     screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
     pygame.display.set_caption(TITLE)
