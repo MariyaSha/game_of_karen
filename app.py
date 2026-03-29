@@ -1,7 +1,5 @@
-# Example file showing a circle moving on screen
 import pygame
 
-# pygame setup
 pygame.init()
 screen = pygame.display.set_mode((1376, 768))
 clock = pygame.time.Clock()
@@ -28,23 +26,19 @@ player_pos = pygame.Vector2(
     )
 
 while running:
-    # poll for events
-    # pygame.QUIT event means the user clicked X to close your window
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-    # fill the screen with a color to wipe away anything from last frame
     screen.blit(bg, (0,0))
     screen.blit(karen, player_pos)
 
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_a]:
+    if keys[pygame.K_LEFT]:
         player_pos.x -= 5
-    if keys[pygame.K_d]:
+    if keys[pygame.K_RIGHT]:
         player_pos.x += 5
 
-    # flip() the display to put your work on screen
     pygame.display.flip()
     clock.tick(60)
 
