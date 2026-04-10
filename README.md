@@ -4,6 +4,7 @@ a Pygame platformer featuring a legendary social hero on her quest to the manage
 ## Video Tutorial
 Want to see how it's made? Follow the complete development process in this comprehensive video guide:
 <br>
+<br>
 <a href="https://youtu.be/fI9Z1-SPfaI" target="_blank">
 <img width="600" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b4905731-f31c-447c-be92-115eea92f428" />
 </a>
