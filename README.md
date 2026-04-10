@@ -41,7 +41,7 @@ python main.py
 <img width="600" alt="Game of Karen Screenshot 1" src="https://github.com/user-attachments/assets/84002056-83cd-4d8d-9e56-6c27fc87b6cf" />
 <br>
 <br>
-<img width="600" alt="Game of Karen Screenshot 2" src="https://github.com/user-attachments/assets/1ab10a78-92ec-4a4f-8a59-846ac2d427bc" />
+<img width="600" alt="Game of Karen Screenshot 2" src="https://github.com/user-attachments/assets/f85874cc-582f-4cb4-9d12-2846c0edcab3" />
 
 ## Current Issues - Awaiting Fix! ⚠️
 
