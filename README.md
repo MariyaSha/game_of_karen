@@ -49,6 +49,7 @@ game_of_karen/
 ├── main.py               # Entry point
 ├── assets/               # All PNG sprites (from MariyaSha/game_of_karen)
 └── src/
+    ├── audio.py          # Centralised SoundManager & SFX triggers
     ├── settings.py       # All constants & tunable values
     ├── fonts.py          # Cross-platform font helper
     ├── asset_loader.py   # Centralised asset cache (load once, reuse)
@@ -81,6 +82,7 @@ game_of_karen/
 | `NotificationSystem` | Floating text messages (+credits, tier up, boss arrival) |
 | `HUD` | Hearts, tier badge, score, boss bar, controls, game-over overlay |
 | `GameManager` | Wires all systems; resolves all collisions; manages game states |
+| `SoundManager` | Audio Engine: Manages music channels, and pre-loads SFX |
 
 ## Gameplay
 
@@ -97,12 +99,15 @@ game_of_karen/
 | Skater | Ground patrol, bounce | 1 HP | Level-Up token |
 | Slacker | Static, on platforms | 3 HP | Bonus token |
 
-### Boss Fight
-Triggered at **2,000 credits**. The Store Manager has two phases:
-- **ATTACK** (immune): Launches parabolic fireballs at Karen's position
-- **IDLE** (vulnerable): Can be hit by Karen's Sound Wave
+## Gameplay
 
-Hit the boss **10 times** during idle phase to win!
+### Boss Fight: The Manager
+The final encounter is triggered when Karen reaches the **end of the world map** (the Arena). Once the Manager arrives, the fight enters a two-phase state machine:
+
+- **ATTACK Phase (Immune):** The Manager is invulnerable and launches parabolic fireballs targeted at Karen’s current position.
+- **IDLE Phase (Vulnerable):** The Manager stops firing and becomes susceptible to damage. Use this window to land hits with your **Sound Waves**.
+
+**Objective:** Land **10 hits** during the IDLE phase to secure a victory and speak to the Manager!
 
 ## Asset Credits
 Original assets by Genspark AI + **[MariyaSha](https://github.com/MariyaSha/game_of_karen)** — MIT License.
