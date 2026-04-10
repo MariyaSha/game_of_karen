@@ -132,47 +132,48 @@ class GameManager:
             self._update_playing()
 
     def _update_playing(self) -> None:
+        """
+        The main gameplay logic loop. 
+        Input and Audio are now synchronized within the actor classes.
+        """
         keys = pygame.key.get_pressed()
 
-        # ── JUMP SFX ─────────────────────────────────────────────────────
-        if (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and self.karen.on_ground:
-            # Note: Karen class handles 'jumps_left', so this only fires on ground
-            self.audio.play_sfx("karen_jump")
-
-        # ── ATTACK SFX ───────────────────────────────────────────────────
-        if keys[pygame.K_f] and self.karen.can_attack():
-            self.audio.play_sfx("karen_attack_soundwave")
-
-        self.karen.handle_input(keys, self.waves)
+        # 1. Handle Input (Karen now triggers her own Jump and Attack sounds)
+        self.karen.handle_input(keys, self.waves, self.audio)
+        
+        # 2. Update Karen Physics
         self._clamp_karen_to_world()
         self.karen.apply_gravity()
         self.karen.resolve_floor()
         self.karen.platform_collide(self.platforms)
         self.karen.update()
 
+        # 3. Tier & UI Flash
         if self._tier_flash > 0:
             self._tier_flash -= 1
 
+        # 4. Camera & Spawner
         self._update_camera()
         self.waves.update()
         self.spawner.update(self.camera_x)
 
+        # 5. Entity Updates
         for enemy in list(self.enemies):
             enemy.update()
 
         for tok in list(self.tokens):
             tok.update(self.karen.rect)
 
-        # ── BOSS LOGIC ───────────────────────────────────────────────────
+        # 6. Boss Entrance Logic
         if not self._boss_spawned:
             karen_x = self.karen.pos.x
             if not self._approaching_warned_far and karen_x >= BOSS_TRIGGER_X - SCREEN_W * 2:
                 self._approaching_warned_far = True
-                self.notifications.add("\u26A0 APPROACHING MANAGER \u26A0", SCREEN_W // 2, SCREEN_H // 3, NEON_YELLOW, font_size=26, duration=150)
+                self.notifications.add("⚠ APPROACHING MANAGER ⚠", SCREEN_W // 2, SCREEN_H // 3, NEON_YELLOW, font_size=26, duration=150)
             
             if not self._approaching_warned_near and karen_x >= BOSS_TRIGGER_X - SCREEN_W // 2:
                 self._approaching_warned_near = True
-                self.notifications.add("\u26a0 THE MANAGER IS WAITING \u26a0", SCREEN_W // 2, SCREEN_H // 3, NEON_PINK, font_size=30, duration=180)
+                self.notifications.add("⚠ THE MANAGER IS WAITING ⚠", SCREEN_W // 2, SCREEN_H // 3, NEON_PINK, font_size=30, duration=180)
 
             if not self._karen_reached_arena and self.karen.pos.x >= BOSS_TRIGGER_X - 600:
                 self._karen_reached_arena = True
@@ -181,25 +182,26 @@ class GameManager:
                 self._boss_frame_timer -= 1
                 if self._boss_frame_timer == 180 and not self._boss_countdown_shown:
                     self._boss_countdown_shown = True
-                    # ── STOP THEME FOR BOSS TENSION ─────────────────────
                     self.audio.stop_theme() 
-                    self.notifications.add("\u26a0 THE MANAGER ARRIVED \u26a0", SCREEN_W // 2, SCREEN_H // 3, NEON_YELLOW, font_size=34, duration=180)
+                    self.notifications.add("⚠ THE MANAGER ARRIVED ⚠", SCREEN_W // 2, SCREEN_H // 3, NEON_YELLOW, font_size=34, duration=180)
                 if self._boss_frame_timer <= 0:
                     self._spawn_boss()
 
         if self._boss_active and self.boss:
             self.boss.update(self.karen.rect)
 
+        # 7. Collision Resolution (Triggers SFX for hits/collects)
         self._resolve_wave_enemy_collisions()
         self._resolve_wave_boss_collisions()
         self._resolve_enemy_karen_collisions()
         self._resolve_fireball_karen_collisions()
         self._resolve_token_karen_collisions()
 
+        # 8. Particle & UI Update
         self.particles.update()
         self.notifications.update()
 
-        # ── END STATES ───────────────────────────────────────────────────
+        # 9. Death & Victory States
         if not self.karen.alive:
             self._state = GameState.GAME_OVER
             self.audio.stop_theme()

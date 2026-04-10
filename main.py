@@ -34,17 +34,18 @@ from src.asset_loader import load_all
 from src.game_manager import GameManager
 
 def main() -> None:
-    pygame.mixer.pre_init(48000, -16, 2, 1024)
+    # 1. Strict WSL-friendly pre_init (44.1kHz and small 512 buffer)
+    pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.init()
-    pygame.mixer.set_num_channels(32) # Reserve 16 clear paths for sound
+    
+    # 2. Increase channels so parallel sounds never "crash" or cut off
+    pygame.mixer.set_num_channels(64) 
 
     screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
     pygame.display.set_caption(TITLE)
 
-    # Load all assets into the global cache
     load_all()
 
-    # Hand control to the game manager
     gm = GameManager(screen)
     gm.run()
 

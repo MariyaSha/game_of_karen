@@ -160,8 +160,12 @@ class Karen(pygame.sprite.Sprite):
         self.rect = new_rect
 
     def handle_input(self, keys: pygame.key.ScancodeWrapper,
-                     waves: pygame.sprite.Group) -> None:
-        
+                     waves: pygame.sprite.Group, audio_manager=None) -> None:
+        """
+        Handles movement and combat input.
+        If audio_manager is provided, triggers SFX instantly on the event frame.
+        """
+        # --- Horizontal Movement ---
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.pos.x  -= KAREN_SPEED
             self.facing  = -1
@@ -171,21 +175,30 @@ class Karen(pygame.sprite.Sprite):
 
         self.pos.x = max(0, self.pos.x)
 
+        # --- Jump Logic ---
         jump_key = keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]
         if jump_key and not self._jump_held:
             if self.jumps_left > 0:
                 self.vel_y = KAREN_JUMP_VEL
                 self.on_ground = False
                 self.jumps_left -= 1
+                # Trigger Jump Sound Instantly
+                if audio_manager:
+                    audio_manager.play_sfx("karen_jump")
         self._jump_held = jump_key
 
+        # --- Attack Logic ---
         if keys[pygame.K_f] and self.can_attack():
             self._attack_timer = self._attack_duration
             cx = int(self.pos.x + self.rect.width  // 2)
             cy = int(self.pos.y + self.rect.height // 2)
             wave = SoundWave(cx, cy, self.facing, self.tier)
             waves.add(wave)
+            # Trigger Attack Sound Instantly
+            if audio_manager:
+                audio_manager.play_sfx("karen_attack_soundwave")
 
+        # --- State Management ---
         if self._attack_timer > 0:
             self.state = "attack"
         elif not self.on_ground:
