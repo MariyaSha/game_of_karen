@@ -351,31 +351,58 @@ class GameManager:
             self.notifications.add(f"\u2605 TIER {self.karen.tier} EVOLVED \u2605", SCREEN_W // 2, SCREEN_H // 2 - 60, NEON_PINK, font_size=36, duration=150)
 
     def _draw(self) -> None:
-        cam   = int(self.camera_x)
-        bg    = assets["background"]
-        bg_w  = bg.get_width()
-        offset = -(cam % bg_w)
-        x = offset
-        while x < SCREEN_W:
-            self.screen.blit(bg, (x, 0))
-            x += bg_w
+        cam = int(self.camera_x)
+        bg = assets.get("background")
+        
+        # 1. Clear the screen first so it's never "black"
+        self.screen.fill((20, 20, 30)) 
 
+        if bg:
+            bg_w = bg.get_width()
+            # This is the "Modulo Fix" we discussed to stop the boss-arena glitch
+            start_x = -(cam % bg_w)
+            
+            # 2. Draw 3 tiles: one to the left, center, and right.
+            # This covers SCREEN_W regardless of how fast Karen is moving.
+            for i in range(-1, 2):
+                draw_x = start_x + (i * bg_w)
+                self.screen.blit(bg, (draw_x, 0))
+
+        # 3. Draw entities (These must come AFTER the background)
         for plat in self.platforms: plat.draw(self.screen, cam)
         for tok in self.tokens: tok.draw(self.screen, cam)
         for enemy in self.enemies: enemy.draw(self.screen, cam)
-        if self._boss_active and self.boss: self.boss.draw(self.screen, cam)
-        for wave in self.waves: wave.draw(self.screen, cam)
+        if self._boss_active and self.boss: 
+            self.boss.draw(self.screen, cam)
+        for wave in self.waves: 
+            wave.draw(self.screen, cam)
+            
         self.karen.draw(self.screen, cam)
         self.particles.draw(self.screen)
         self.notifications.draw(self.screen)
 
+        # 4. HUD and Overlays
         if self._tier_flash > 0:
             self.hud.draw_tier_up(self.screen, self._tier_flash_val)
 
-        boss_hp  = self.boss.health if self.boss else 0
+        boss_hp = self.boss.health if self.boss else 0
         from src.settings import BOSS_HEALTH
-        self.hud.draw(self.screen, health=self.karen.health, tier=self.karen.tier, score=self.karen.score, level_up_count=self.karen.level_up_count, boss_health=boss_hp, boss_max=BOSS_HEALTH, boss_active=self._boss_active, boss_phase=self.boss.phase if self.boss else "idle")
+        self.hud.draw(
+            self.screen, 
+            health=self.karen.health, 
+            tier=self.karen.tier, 
+            score=self.karen.score, 
+            level_up_count=self.karen.level_up_count, 
+            boss_health=boss_hp, 
+            boss_max=BOSS_HEALTH, 
+            boss_active=self._boss_active, 
+            boss_phase=self.boss.phase if self.boss else "idle"
+        )
 
-        if self._state == GameState.GAME_OVER: self.hud.draw_game_over(self.screen)
-        elif self._state == GameState.VICTORY: self.hud.draw_victory(self.screen)
+        if self._state == GameState.GAME_OVER: 
+            self.hud.draw_game_over(self.screen)
+        elif self._state == GameState.VICTORY: 
+            self.hud.draw_victory(self.screen)
+
+        # 5. Final buffer swap
         pygame.display.flip()
