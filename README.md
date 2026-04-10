@@ -6,7 +6,7 @@ Want to see how it's made? Follow the complete development process in this compr
 <br>
 <br>
 <a href="https://youtu.be/fI9Z1-SPfaI" target="_blank">
-<img width="600" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b4905731-f31c-447c-be92-115eea92f428" />
+<img width="600" height="1080" alt="Game of Karen Thumbnail Image Featuring Mariya Sha" src="https://github.com/user-attachments/assets/b4905731-f31c-447c-be92-115eea92f428" />
 </a>
 <br>
 *Click the image above to watch the tutorial.*
@@ -35,6 +35,23 @@ git clone https://github.com/MariyaSha/game_of_karen.git
 cd game_of_karen
 python main.py
 ```
+
+## Screenshots
+
+<img width="900" alt="Game of Karen Screenshot 1" src="https://github.com/user-attachments/assets/84002056-83cd-4d8d-9e56-6c27fc87b6cf" />
+<br>
+<img width="900" alt="Game of Karen Screenshot 2" src="https://github.com/user-attachments/assets/1ab10a78-92ec-4a4f-8a59-846ac2d427bc" />
+
+## Current Issues - Awaiting Fix!
+Audio buffer gets overwhelmed and doesn't play game theme music properly. The theme initializes in the correct speed and quality, but immediatley slows down and quality degrades. When restarting the game - theme restarts at lower speed and lower quanity from the get go.
+
+### Solutions That Didn't Work:
+- compressing theme song to .WAV
+- compressing theme song to .OGG
+- increasing buffer to 1024, 2048, 4096, 8192
+- changing frequency to 48000
+
+If you have a solution - please send a fix 🙏
 
 ## Controls
 
