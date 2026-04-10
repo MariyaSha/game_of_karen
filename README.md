@@ -1,27 +1,35 @@
-# game_of_karen
+# Game Of Karen
 a Pygame platformer featuring a legendary social hero on her quest to the manager
 
----
-
-# Game of Karen — Refactored
-
-A **2D side-scrolling platformer** set in a neon-tech retail environment, built with Python + Pygame.  
-Refactored from the original `app.py` quickstart into a fully modular, Object-Oriented architecture.
-
----
+## Video Tutorial
+I show you how this game was built, step by step, in my video tutorial:
+<br>
+<img width="900" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b4905731-f31c-447c-be92-115eea92f428" />
 
 ## Quick Start
 
+1. install dependencies in WSL:
 ```bash
-pip install pygame-ce
+sudo apt update
+sudo apt install libsdl2-mixer-2.0-0 libsdl2-image-2.0-0 libsdl2-ttf-2.0-0 libsdl2-2.0-0
+```
+
+2. craate environemnt:
+```bash
+conda create -n karen_env python=3.12
+conda activate karen_env
+```
+3. insatll pygame:
+```bash
+pip install pygame
+```
+
+4. clone and run game:
+```bash
+git clone https://github.com/MariyaSha/game_of_karen.git
 cd game_of_karen
 python main.py
 ```
-
-> **Requires Python 3.10+** and a display (X11 / macOS / Windows).  
-> For headless testing: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy python main.py`
-
----
 
 ## Controls
 
@@ -33,8 +41,6 @@ python main.py
 | `F` | Fire Sound Wave |
 | `R` | Restart (Game Over / Victory) |
 | `Q` | Quit |
-
----
 
 ## Architecture
 
@@ -76,8 +82,6 @@ game_of_karen/
 | `HUD` | Hearts, tier badge, score, boss bar, controls, game-over overlay |
 | `GameManager` | Wires all systems; resolves all collisions; manages game states |
 
----
-
 ## Gameplay
 
 ### Karen's Tier System
@@ -100,7 +104,5 @@ Triggered at **2,000 credits**. The Store Manager has two phases:
 
 Hit the boss **10 times** during idle phase to win!
 
----
-
 ## Asset Credits
-Original assets by **[MariyaSha](https://github.com/MariyaSha/game_of_karen)** — MIT License.
+Original assets by Genspark AI + **[MariyaSha](https://github.com/MariyaSha/game_of_karen)** — MIT License.
