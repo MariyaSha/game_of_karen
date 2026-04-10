@@ -1,7 +1,7 @@
 # Game Of Karen
 a Pygame platformer featuring a legendary social hero on her quest to the manager
 
-## Video Tutorial
+## Video Tutorial 🎥
 Want to see how it's made? Follow the complete development process in this comprehensive video guide:
 <br>
 <br>
@@ -11,7 +11,7 @@ Want to see how it's made? Follow the complete development process in this compr
 <br>
 *Click the image above to watch the tutorial.*
 
-## Quick Start
+## Quick Start ⏰
 
 1. install dependencies in WSL:
 ```bash
@@ -56,7 +56,7 @@ Audio buffer gets overwhelmed and doesn't play game theme music properly. The th
 
 If you have a solution - please send a fix 🙏
 
-## Controls
+## Controls 🎮
 
 | Key | Action |
 |-----|--------|
@@ -67,7 +67,7 @@ If you have a solution - please send a fix 🙏
 | `R` | Restart (Game Over / Victory) |
 | `Q` | Quit |
 
-## Architecture
+## Architecture 🏛️
 
 ```
 game_of_karen/
@@ -88,7 +88,7 @@ game_of_karen/
     └── game_manager.py   # Central orchestrator & game loop
 ```
 
-### Class Overview
+### Class Overview 🔍
 
 | Class | Responsibility |
 |-------|----------------|
@@ -109,7 +109,7 @@ game_of_karen/
 | `GameManager` | Wires all systems; resolves all collisions; manages game states |
 | `SoundManager` | Audio Engine: Manages music channels, and pre-loads SFX |
 
-## Gameplay
+## Gameplay ⭐
 
 ### Karen's Tier System
 - Collect **Level-Up Tokens** (★ icons) to evolve Karen
@@ -117,14 +117,12 @@ game_of_karen/
   - **6 tokens** → Tier 3 (pink Sound Wave)
 - Each tier changes Karen's sprite and wave colour
 
-### Enemy Types
+### Enemy Types 👾
 | Enemy | Movement | Health | Drop |
 |-------|----------|--------|------|
 | Flyer | Sine-wave, left | 1 HP | Bonus token |
 | Skater | Ground patrol, bounce | 1 HP | Level-Up token |
 | Slacker | Static, on platforms | 3 HP | Bonus token |
-
-## Gameplay
 
 ### Boss Fight: The Manager
 The final encounter is triggered when Karen reaches the **end of the world map** (the Arena). Once the Manager arrives, the fight enters a two-phase state machine:
@@ -134,5 +132,5 @@ The final encounter is triggered when Karen reaches the **end of the world map**
 
 **Objective:** Land **10 hits** during the IDLE phase to secure a victory and speak to the Manager!
 
-## Asset Credits
+## Asset Credits 💳
 Original assets by Genspark AI + **[MariyaSha](https://github.com/MariyaSha/game_of_karen)** — MIT License.
