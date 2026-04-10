@@ -36,13 +36,15 @@ cd game_of_karen
 python main.py
 ```
 
-## Screenshots
+## Game Screenshots 📸
 
-<img width="900" alt="Game of Karen Screenshot 1" src="https://github.com/user-attachments/assets/84002056-83cd-4d8d-9e56-6c27fc87b6cf" />
+<img width="600" alt="Game of Karen Screenshot 1" src="https://github.com/user-attachments/assets/84002056-83cd-4d8d-9e56-6c27fc87b6cf" />
 <br>
-<img width="900" alt="Game of Karen Screenshot 2" src="https://github.com/user-attachments/assets/1ab10a78-92ec-4a4f-8a59-846ac2d427bc" />
+<br>
+<img width="600" alt="Game of Karen Screenshot 2" src="https://github.com/user-attachments/assets/1ab10a78-92ec-4a4f-8a59-846ac2d427bc" />
 
-## Current Issues - Awaiting Fix!
+## Current Issues - Awaiting Fix! ⚠️
+
 Audio buffer gets overwhelmed and doesn't play game theme music properly. The theme initializes in the correct speed and quality, but immediatley slows down and quality degrades. When restarting the game - theme restarts at lower speed and lower quanity from the get go.
 
 ### Solutions That Didn't Work:
