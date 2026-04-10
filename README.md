@@ -2,9 +2,13 @@
 a Pygame platformer featuring a legendary social hero on her quest to the manager
 
 ## Video Tutorial
-I show you how this game was built, step by step, in my video tutorial:
+Want to see how it's made? Follow the complete development process in this comprehensive video guide:
 <br>
-<img width="900" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b4905731-f31c-447c-be92-115eea92f428" />
+<a href="https://youtu.be/fI9Z1-SPfaI" target="_blank">
+<img width="600" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b4905731-f31c-447c-be92-115eea92f428" />
+</a>
+<br>
+*Click the image above to watch the tutorial.*
 
 ## Quick Start
 
