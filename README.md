@@ -38,10 +38,11 @@ python main.py
 
 ## Game Screenshots 📸
 
-<img width="600" alt="Game of Karen Screenshot 1" src="https://github.com/user-attachments/assets/84002056-83cd-4d8d-9e56-6c27fc87b6cf" />
+<img width="500" alt="Game of Karen Screenshot 1" src="https://github.com/user-attachments/assets/2d4ab372-6c0a-406d-914e-bce044d40a46" />
+<img width="500" alt="Game of Karen Screenshot 2" src="https://github.com/user-attachments/assets/55cadd26-c5b2-49b1-bf9d-8c34e0296b5b" />
 <br>
-<br>
-<img width="600" alt="Game of Karen Screenshot 2" src="https://github.com/user-attachments/assets/f85874cc-582f-4cb4-9d12-2846c0edcab3" />
+<img width="500" alt="Game of Karen Screenshot 3" src="https://github.com/user-attachments/assets/c7860883-f5cf-4014-b871-25a0b3d5cbd9" />
+<img width="500" alt="Game of Karen Screenshot 4" src="https://github.com/user-attachments/assets/f85874cc-582f-4cb4-9d12-2846c0edcab3" />
 
 ## Current Issues - Awaiting Fix! ⚠️
 
