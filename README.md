@@ -6,7 +6,7 @@ Want to see how it's made? Follow the complete development process in this compr
 <br>
 <br>
 <a href="https://youtu.be/fI9Z1-SPfaI" target="_blank">
-<img width="600" height="1080" alt="Game of Karen Thumbnail Image Featuring Mariya Sha" src="https://github.com/user-attachments/assets/b4905731-f31c-447c-be92-115eea92f428" />
+<img width="600" alt="Game of Karen Thumbnail Image Featuring Mariya Sha" src="https://github.com/user-attachments/assets/b4905731-f31c-447c-be92-115eea92f428" />
 </a>
 <br>
 *Click the image above to watch the tutorial.*
